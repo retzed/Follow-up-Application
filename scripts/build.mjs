@@ -9,17 +9,22 @@ const runtimeConfig = {
   apiBaseUrl: ''
 };
 
-const configBlock = /<script id="team-follow-up-runtime-config">[\\s\\S]*?<\\/script>/;
-if (!configBlock.test(source)) {
+const openTag = '<script id="team-follow-up-runtime-config">';
+const closeTag = '</script>';
+const start = source.indexOf(openTag);
+const end = start < 0 ? -1 : source.indexOf(closeTag, start + openTag.length);
+if (start < 0 || end < 0) {
   throw new Error('index.html is missing the Team Follow-Up runtime configuration block.');
 }
 
-const serialized = JSON.stringify(runtimeConfig, null, 2).replaceAll('<', '\\u003c');
-const replacement = '<script id="team-follow-up-runtime-config">\\n' +
-  '/* This build intentionally uses the browser-local demo adapter. */\\n' +
-  'window.TEAM_FOLLOW_UP_CONFIG = Object.freeze(' + serialized + ');\\n' +
-  '</script>';
-const output = source.replace(configBlock, replacement);
+const serialized = JSON.stringify(runtimeConfig, null, 2);
+const replacement = [
+  openTag,
+  '/* This build intentionally uses the browser-local demo adapter. */',
+  'window.TEAM_FOLLOW_UP_CONFIG = Object.freeze(' + serialized + ');',
+  closeTag
+].join(String.fromCharCode(10));
+const output = source.slice(0, start) + replacement + source.slice(end + closeTag.length);
 
 await mkdir(outputDirectory, { recursive: true });
 await writeFile(outputDirectory + '/index.html', output, 'utf8');
