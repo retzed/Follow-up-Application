@@ -48,7 +48,7 @@ assert.equal(tables.workItems.find(x => x.itemId === 'p-old').listPK, 'TOP_LEVEL
 assert.equal(tables.workItems.find(x => x.itemId === 't-1').listPK, 'PARENT#p-old');
 assert.equal(tables.workItems.find(x => x.itemId === 't-1').rootPK, 'ROOT#p-old');
 assert.equal(tables.workItems.find(x => x.itemId === 't-1').assigneePK, 'USER#u2');
-assert.ok(!Object.hasOwn(tables.userProfiles[0], 'cognitoSub'), 'missing Cognito sub should not be stored as a null GSI key');
+assert.ok(!Object.hasOwn(tables.userProfiles[0], 'cognitoSub'), 'missing external identity should not be stored as an empty profile index key');
 assert.ok(Array.isArray(tables.archiveItems), 'the built-in fourth table exists for archived items');
 assert.equal(api.tableNames.archive, 'TeamFollowUp-Archive');
 
@@ -180,7 +180,7 @@ assert.ok(methodCalls.some(x => x.method === 'DELETE' && x.path === '/items/p-te
 assert.ok(methodCalls.some(x => x.method === 'GET' && x.path.startsWith('/archive')));
 assert.ok(methodCalls.some(x => x.method === 'POST' && x.path === '/archive/restore'));
 assert.equal(warnings.length, 0, `no adapter storage warnings expected: ${warnings.join('; ')}`);
-console.log('Built-in DynamoDB-shaped API tests passed: indexed queries, create/edit/status/assignment/delete/restore event coverage, archive moves, parent-safe selective restoration, retained history, one-request cascade delete and summary-only bulk audit events.');
+console.log('Built-in local data adapter tests passed: indexed queries, create/edit/status/assignment/delete/restore event coverage, archive moves, parent-safe selective restoration, retained history, one-request cascade delete and summary-only bulk audit events.');
 
 // Use an independent adapter instance preloaded with more than one archive page to prove
 // that the public Archive helper follows nextOffset until every record is retrieved.

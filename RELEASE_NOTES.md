@@ -1,22 +1,17 @@
-# AWS Deployment Preparation — Release Notes
+# Application Release Notes
 
-## Included in this release
+## Current public demo
 
-- Structured Amplify build with fail-closed hosted configuration checks; production/API mode requires explicit Cognito IDs, HTTPS API base URL, and disabled local authentication.
-- AWS SAM template provisions Cognito User Pool/public client, API Gateway HTTP API with JWT authorizer and exact-origin CORS, Python 3.12 Lambda, four DynamoDB tables/indexes, retained data resources, and CloudWatch logs/dashboard/alarms.
-- Explicit `dynamodb:TransactWriteItems` access for atomic work-item/archive/activity writes.
-- Cognito-subject profile seeder and activity index migration script.
-- Safer API error responses and structured request/error logs without returning internal exception details.
-- Expanded Python/API helper tests, infrastructure contract checks, frontend regression tests, and CI steps for SAM validation/build.
-- Deployment runbook and architecture/data-flow diagrams.
+- Bilingual English/Arabic workspace for projects, jobs, tasks, and follow-ups.
+- Search and assignment views, item metadata, priority/status controls, item and application-wide activity history, archive, and hierarchy-aware restore.
+- Responsive desktop/mobile interface with light and dark themes.
+- Mixed Arabic/English item-name handling and localized activity labels.
+- Built-in team demo identities and browser-local workspace persistence.
+- Automated regression tests for JavaScript syntax, local data behavior, activity history, archive/restore, search, language rendering, and UI refinements.
+- GitHub Actions workflow that tests, builds, and publishes the static demo with GitHub Pages.
 
-## Validation completed in this workspace
+## Demo limitations
 
-- `npm test`
-- `npm run build`
-- `python -m unittest discover -s backend/tests -v`
-- `python scripts/test-infrastructure.py`
-- `python -m py_compile backend/src/handler.py backend/scripts/*.py scripts/test-infrastructure.py`
-- CloudFormation/SAM YAML parsed and resource/index contracts checked.
-
-The AWS SAM CLI is not installed in this workspace, so `sam validate --lint` and `sam build` are configured in GitHub Actions but were not run locally. This release has not been deployed to an AWS account; run the deployment and smoke-test steps in `docs/DEPLOYMENT.md` before sharing with the team.
+- Username-based demo sign-in accepts any non-empty password and is not real authentication.
+- Workspaces persist only in the current browser's local storage; there is no cross-device or shared team database.
+- A server-side backend is not included in the public application repository. Backend technology and hosting will be chosen separately if shared persistence is required.
