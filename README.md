@@ -2,7 +2,7 @@
 
 A bilingual (English/Arabic) team workspace for organizing projects, jobs, tasks, follow-ups, assignments, priorities, and activity history.
 
-**Demo URL (available after the one-time Pages setup): [retzed.github.io/Follow-up-Application](https://retzed.github.io/Follow-up-Application/)** · [Project guide](PROJECT_GUIDE.md) · [Application architecture](docs/ARCHITECTURE.md)
+**Demo URL: [retzed.github.io/Follow-up-Application](https://retzed.github.io/Follow-up-Application/)** · [Project guide](PROJECT_GUIDE.md) · [Application architecture](docs/ARCHITECTURE.md)
 
 > **Demo only:** this public build uses browser-local demo sign-in and local browser storage. It has no server-side database or real authentication. Do not enter private, personal, or confidential information. Each browser profile has its own copy of the demo data.
 
