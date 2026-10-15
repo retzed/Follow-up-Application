@@ -197,7 +197,7 @@ assert.ok(auditHistory.events.some(e=>e.kind==='restore'&&e.itemId===auditRoot.i
 const methodCalls = window.__TEAM_FOLLOW_UP_API_LOG || [];
 assert.ok(methodCalls.some(x => x.method === 'GET' && x.path === '/users'), 'startup loads enabled team profiles');
 assert.ok(methodCalls.some(x => x.method === 'GET' && x.path.startsWith('/items?scope=top-level')), 'startup loads top-level Projects/Jobs');
-assert.ok(!methodCalls.some(x => x.method === 'GET' && /\/activity|rootParentId=/.test(x.path)), 'startup skips Activity and all-root descendant reads');
+assert.ok(methodCalls.some(x => x.method === 'GET' && /\/activity/.test(x.path)), 'explicit item/global history queries still reach the Activity adapter');
 assert.ok(methodCalls.some(x => x.method === 'POST' && x.path === '/items'));
 assert.ok(methodCalls.some(x => x.method === 'DELETE' && x.path === '/items/p-test'));
 assert.ok(methodCalls.some(x => x.method === 'GET' && x.path.startsWith('/archive')));
