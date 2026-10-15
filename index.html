@@ -1275,6 +1275,48 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
    }
    return event;
   }
+ function persistInitialActivityBatch(rawEvents){
+  // Initial demo seeding may contain thousands of events. Index existing keys/IDs
+  // once instead of rescanning localStorage for every row (quadratic work).
+  const occupiedKeys=new Set(),idToKey=new Map(),rowByKey=new Map();
+  for(let i=0;i<localStorage.length;i++){
+   const key=localStorage.key(i);if(!key||!key.startsWith(ACTIVITY_EVENT_PREFIX))continue;
+   occupiedKeys.add(key);
+   try{
+    const row=JSON.parse(localStorage.getItem(key)||'null');
+    const id=String(row?.eventId||row?.id||'');
+    if(id){if(!idToKey.has(id))idToKey.set(id,key);rowByKey.set(key,row);}
+   }catch(error){}
+  }
+  const saved=[];let collisionSequence=0;
+  for(const raw of rawEvents||[]){
+   let event=ensureActivityIndexes(raw);
+   if(!event.eventId)throw new Error('eventId is required.');
+   const originalId=String(event.eventId);
+   let key=activityEventStorageKey(event.itemId,originalId);
+   const existingKey=idToKey.get(originalId);
+   if(existingKey){
+    const existing=rowByKey.get(existingKey);
+    if(existing&&activityIdentity(existing)===activityIdentity(event)){
+     event=ensureActivityIndexes({...existing,...event,eventId:originalId});
+     localStorage.setItem(existingKey,JSON.stringify(event));
+     rowByKey.set(existingKey,event);saved.push(event);continue;
+    }
+   }
+   if(occupiedKeys.has(key)||idToKey.has(originalId)){
+    let candidate;
+    do{
+     collisionSequence++;
+     candidate=originalId+'_collision_'+Date.now().toString(36)+'_'+collisionSequence.toString(36);
+     key=activityEventStorageKey(event.itemId,candidate);
+    }while(occupiedKeys.has(key)||idToKey.has(candidate));
+    event=ensureActivityIndexes({...event,eventId:candidate});
+   }
+   localStorage.setItem(key,JSON.stringify(event));
+   occupiedKeys.add(key);idToKey.set(String(event.eventId),key);rowByKey.set(key,event);saved.push(event);
+  }
+  return saved;
+ }
  function readActivityEventsForItems(itemIds){
   migrateLegacyActivityArray();
   const wanted=(itemIds||[]).map(id=>String(id||'')).filter(Boolean);
@@ -1332,7 +1374,7 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
   if(wasUninitialized&&Array.isArray(t.activityEvents)){
    const seedEvents=t.activityEvents.slice();
    memoryTables.activityEvents=[];activityTableLoaded=false;activityTableDirty=false;
-   try{for(const event of seedEvents)persistActivityEvent(event);localStorage.removeItem(ACTIVITY_TABLE_KEY);}
+   try{memoryTables.activityEvents=persistInitialActivityBatch(seedEvents);localStorage.removeItem(ACTIVITY_TABLE_KEY);}
    catch(e){memoryTables.activityEvents=seedEvents;activityTableLoaded=true;activityTableDirty=true;}
   }else if(activityTableLoaded)activityTableDirty=true;
   scheduleTableStorageSave();
@@ -1535,7 +1577,11 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  }
  async function bootstrap(fallback,onProgress){
   const notify=(snapshot,stage,extra={})=>{if(typeof onProgress==='function'){try{onProgress(clone(snapshot),{stage,...extra});}catch(error){console.warn('Data loading progress callback failed.',error);}}};
-  if(mode!=='api'&&!readTables())writeTables(tableFromSnapshot(fallback||{users:[],parents:[],children:[],activity:[]}));
+  if(mode!=='api'&&!readTables()){
+   // Yield after the shell/loading placeholders render, before bulk-seeding the large local demo fixture.
+   await new Promise(resolve=>{if(typeof setTimeout==='function')setTimeout(resolve,0);else resolve();});
+   if(!readTables())writeTables(tableFromSnapshot(fallback||{users:[],parents:[],children:[],activity:[]}));
+  }
   const snapshot={schema:4,users:[],parents:[],children:[],activity:[]};
   const profiles=await request('GET','/users');
   const userRows=Array.isArray(profiles)?profiles:(profiles?.users||profiles?.items||[]);
