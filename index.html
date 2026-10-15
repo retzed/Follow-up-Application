@@ -852,7 +852,7 @@ body.signin-open{overflow:hidden} .signin-screen{position:fixed;inset:0;z-index:
 .sidebar-search-row .searchbox{flex:1 1 auto;min-width:0}
 .sidebar-search-row .searchbox input{min-width:0}
 .sidebar-search-row .count-badge{flex:0 0 auto;max-width:42%;padding:6px 8px;font-size:10px;text-align:center}
-/* The breadcrumb chevron points into the current item's label in RTL as well. */
+/* The breadcrumb chevron points into the current item’s label in RTL as well. */
 html[dir="rtl"] .breadcrumb svg:nth-of-type(2){transform:scaleX(-1)}
 @media(max-width:360px){
   .sidebar-search-row{gap:6px}
@@ -2040,7 +2040,7 @@ function seedData(){
    tasks:[
     task('3.1 Verify the Cognito User Pool and sign-in options','Reuse the current pool when its settings match. The 15 October 2026 implementation snapshot records pool us-east-1_7dYZw2Is6 and public client Team_FollowUp / 7id8c2g27fvbh365atqntqurir as operator-reported values; verify live console state before relying on them.', 'u4','high','completed',[
      step('Confirm pool identity and Region','Inspect Cognito in us-east-1 and match the actual User Pool ID to the private deployment record. Do not create a duplicate pool because the console opened to a different Region.','u4','completed'),
-     step('Keep user self-registration disabled','Accounts are administrator-managed for this internal workspace. Verify the pool's sign-up settings and avoid accidental public registration.','u4','completed'),
+     step('Keep user self-registration disabled','Accounts are administrator-managed for this internal workspace. Verify the pool’s sign-up settings and avoid accidental public registration.','u4','completed'),
      step('Review the current authentication flow','The current frontend uses direct Cognito USER_SRP_AUTH with a public app client. A managed-login domain and hosted-UI callback URLs are not required for this direct flow.','u4','completed'),
      step('Record the state as dated and operator-reported','Pool/client IDs are public runtime configuration, not proof that a service is working. Recheck status whenever a pool or client is replaced and never put a client secret in the browser.','u1','completed')
     ]),
@@ -2052,7 +2052,7 @@ function seedData(){
     ]),
     task('3.3 Configure the public app client for browser use','A browser application cannot keep a client secret. Align the app client with direct sign-in and the runtime configuration expected by the frontend build.', 'u4','high','completed',[
      step('Use a public client with no client secret','Verify the frontend app client is suitable for a browser and has no client secret. Never copy a secret into TEAM_FOLLOW_UP_* frontend variables or JavaScript.','u4','completed'),
-     step('Review enabled authentication flows and MFA state','Confirm the direct SRP flow used by the current code is enabled. The dated setup snapshot reports MFA Off; follow the team's identity policy and explicitly review the tradeoff before broader use.','u4','completed'),
+     step('Review enabled authentication flows and MFA state','Confirm the direct SRP flow used by the current code is enabled. The dated setup snapshot reports MFA Off; follow the team’s identity policy and explicitly review the tradeoff before broader use.','u4','completed'),
      step('Keep app-client attribute permissions least-privilege','Limit readable/writable attributes to those required. In particular, the browser client must not be allowed to change custom:teamUserId or impersonate another application identity.','u4','in-progress'),
      step('Record the real pool issuer and public client ID','The issuer has the form https://cognito-idp.us-east-1.amazonaws.com/POOL_ID. The public client ID is used by the client and JWT audience configuration; verify both values against the live pool.','u2','completed')
     ]),
@@ -2064,7 +2064,7 @@ function seedData(){
     ]),
     task('3.5 Validate sign-in, sign-out, expiry and failure paths','Prove a real browser session gets a valid token and that protected routes fail safely for missing, expired, unmapped or disabled identities.', 'u4','high','not-started',[
      step('Verify sign-in and current team-user selection','Sign in with a provisioned email/account, inspect the mapped team user in the UI, and confirm creator/actor identity derives from the trusted profile rather than editable form values.','u4','not-started'),
-     step('Verify sign-out clears the active session','Use the application sign-out action and confirm the protected workspace no longer operates under the previous user's identity. Avoid printing tokens in debugging output.','u4','not-started'),
+     step('Verify sign-out clears the active session','Use the application sign-out action and confirm the protected workspace no longer operates under the previous user’s identity. Avoid printing tokens in debugging output.','u4','not-started'),
      step('Test missing token and unknown profile cases','A missing/invalid JWT should be rejected by API Gateway; a verified Cognito subject without an enabled Users mapping should be denied by Lambda. Capture only sanitized status and message.','u3','not-started'),
      step('Test expired tokens and recovery','Allow an access token to expire or simulate the error path in unit tests. The UI should request sign-in again or show a clear recoverable message rather than silently treating the visitor as another user.','u4','not-started')
     ])
@@ -2354,7 +2354,7 @@ function seedData(){
     ]),
     task('11.4 Validate all history-producing actions','Use the Activity record contract for create, edit, status change, delete, archive and restore. History is read on demand but must exist reliably for all completed operations.', 'u3','high','not-started',[
      step('Audit each create and update form path','Create an item, change description/assignee/due date/priority/type and verify the correct event fields, actor and timestamp. Unchanged forms should not create fake updates.','u3','not-started'),
-     step('Audit status changes and last-updated metadata','Status transition gets a dedicated event. The item's Last updated label still uses the same latest updatedAt/updatedBy metadata and should not create an unrelated duplicate label.','u3','not-started'),
+     step('Audit status changes and last-updated metadata','Status transition gets a dedicated event. The item’s Last updated label still uses the same latest updatedAt/updatedBy metadata and should not create an unrelated duplicate label.','u3','not-started'),
      step('Audit delete/restore and archived-descendant history','Delete a subtree and ensure an event appears even though the item is absent from active rows. Reopen root history and verify events for archived descendants are included.','u3','not-started'),
      step('Audit Activity de-duplication and timestamps','Ensure event IDs are stable, timestamps are UTC ISO strings, activityKey uses timestamp#eventId, and repeated response merging does not duplicate timeline cards.','u3','not-started')
     ]),
@@ -2928,7 +2928,7 @@ function activityText(entry,contextItemId=''){
  if(isCurrentItem&&ownDetails){const raw=ownDetails[1];if(ui.lang==='ar')return `تم تحديث تفاصيل ${typeName(raw,'ar')}`;return `Updated details for the ${typeName(raw,'en')}`;}
  const bulkChildren=Math.max(0,Number(entry.affectedDescendantCount)||0);
  const bulkMatch=action.match(/^(Deleted|Restored) (project|job|task|follow-?up):\s*(.*)$/i);
- // In the selected item's Recent activity list, actions on that item itself should not
+ // In the selected item’s Recent activity list, actions on that item itself should not
  // repeat its full title. Keep the full action for child events and history-table records.
  if(isCurrentItem&&bulkMatch){
   const verb=bulkMatch[1].toLowerCase();
@@ -4510,7 +4510,7 @@ html[dir="rtl"] #mainContent .child-filter-field .child-filter-control{padding-i
 }
 html[dir="rtl"] .application-history-controls .application-history-user-filter { padding-inline:34px 10px; }
 
-/* Keep each direct hierarchy item's type chip beside its name at phone widths. */
+/* Keep each direct hierarchy item’s type chip beside its name at phone widths. */
 .tree-name-type { display:flex; align-items:flex-start; gap:6px; flex:1 1 auto; min-width:0; }
 .tree-name-type > .tree-title,
 .tree-name-type > .tree-child-name { flex:1 1 0; min-width:0; margin:0; overflow-wrap:anywhere; white-space:normal; }
