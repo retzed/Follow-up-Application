@@ -1181,9 +1181,9 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  'use strict';
  const cfg=window.TEAM_FOLLOW_UP_CONFIG||{};
  const mode=String(cfg.dataMode||'builtin').toLowerCase();
- const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v1';
- const ACTIVITY_TABLE_KEY='team-follow-up-builtin-dynamodb-activity-table-v1';
- const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v1:';
+ const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v2';
+ const ACTIVITY_TABLE_KEY='team-follow-up-builtin-dynamodb-activity-table-v2';
+ const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v2:';
  const names=Object.freeze({workItems:'TeamFollowUp-WorkItems',activity:'TeamFollowUp-ActivityEvents',users:'TeamFollowUp-UserProfiles',archive:'TeamFollowUp-Archive'});
  let memoryTables=null;let tableStorageSaveTimer=0;
  const clone=value=>JSON.parse(JSON.stringify(value??null));
@@ -1888,7 +1888,7 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
 (async () => {
 'use strict';
 try {
-const STORAGE_KEY = 'team-follow-up-demo-v3';
+const STORAGE_KEY = 'team-follow-up-demo-v4';
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 /* Central HTML-escaping boundary. Escape untrusted work-item, user, and API values before interpolating them into HTML; use textContent when markup is unnecessary. */
@@ -1955,162 +1955,661 @@ function seedData(){
   {id:'u5',name:'Haneen',role:'AWS Engineer'},
   {id:'u6',name:'Dina',role:'AWS Engineer'}
  ];
- const memberIdAt = index => users[((index % users.length) + users.length) % users.length].id;
- const projectSpecs=[
-  {id:'p1',name:'01 · Architecture & AWS Foundation',description:'Establish a shared understanding of the Team Follow-Up Application, its AWS components, request flow, region, naming, and safe lab guardrails.',ownerId:'u1',status:'in-progress',due:12,tasks:[
-   {id:'t1',name:'Confirm scope, architecture and request flow',description:'Agree how the browser UI, identity provider, API, persistence and monitoring fit together.',ownerId:'u1',priority:'high',status:'completed',steps:[
-    ['Map the browser → CloudFront/S3 delivery path','Document how static HTML, CSS and JavaScript reach the browser over HTTPS.','u1','completed'],
-    ['Map Cognito → API Gateway → Lambda → DynamoDB','Record where login tokens are issued, validated, and used to protect data operations.','u2','completed'],
-    ['Agree the first-release work-item rules','Confirm project/job parent rules, nested tasks/follow-ups, assignment, and newest-first audit history.','u1','completed']
-   ]},
-   {id:'t2',name:'Prepare the AWS account and region',description:'Choose one deployment region for regional services and define names for every resource.',ownerId:'u2',priority:'high',status:'in-progress',steps:[
-    ['Choose one AWS Region and keep regional services together','Use eu-central-1 (Frankfurt) for this lab unless account policy requires another region.','u2','completed'],
-    ['Choose a unique resource-name prefix','Prepare names for the DynamoDB table, Lambda function, API, bucket, and Cognito pool.','u2','in-progress'],
-    ['Create a budget alert before provisioning','Set a small monthly budget and email alert; budgets notify but do not automatically cap all charges.','u1','not-started']
-   ]}
-  ]},
-  {id:'p2',name:'02 · IAM & Security Baseline',description:'Create least-privilege execution permissions and keep human access, application access, and service-to-service permissions separate.',ownerId:'u2',status:'not-started',due:16,tasks:[
-   {id:'t3',name:'Create the Lambda execution role',description:'Allow the function to write logs and access only the application data table and its index.',ownerId:'u2',priority:'urgent',status:'not-started',steps:[
-    ['Create a trusted role for the Lambda service','In IAM, create a role trusted by lambda.amazonaws.com.','u2','not-started'],
-    ['Attach the basic Lambda logging policy','Add AWSLambdaBasicExecutionRole so the function can create log streams and publish logs.','u2','not-started'],
-    ['Add table-scoped DynamoDB permissions','Allow the required GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan and BatchWriteItem actions only on the lab table and its indexes.','u2','not-started']
-   ]},
-   {id:'t4',name:'Review browser and API security boundaries',description:'Keep secrets out of static assets and require a verified user token on business routes.',ownerId:'u1',priority:'high',status:'not-started',steps:[
-    ['Keep the S3 bucket private','Do not disable S3 Block Public Access to make the website work.','u5','not-started'],
-    ['Use CloudFront Origin Access Control','Allow only the intended CloudFront distribution to read the bucket.','u5','not-started'],
-    ['Confirm no privileged role is inferred from job title','Treat Team Leader and AWS Engineer as display labels, not authorization rules.','u1','not-started']
-   ]}
-  ]},
-  {id:'p3',name:'03 · Amazon Cognito Identity',description:'Create the user pool and app client, register the hosted-login return URLs, and provision the six named team members.',ownerId:'u4',status:'not-started',due:19,tasks:[
-   {id:'t5',name:'Create and configure the user pool',description:'Configure sign-in by email and use an app client without a client secret for browser-based OAuth.',ownerId:'u4',priority:'high',status:'not-started',steps:[
-    ['Create a Cognito User Pool','Use email as the sign-in identifier and disable self-service sign-up to keep access restricted to invited team members, if the console offers that option.','u4','not-started'],
-    ['Create a public app client with OAuth authorization code flow','Do not create a client secret for the browser application; use authorization code with PKCE.','u4','not-started'],
-    ['Set callback and sign-out URLs after CloudFront exists','Use the exact HTTPS CloudFront distribution URL; update these allow-lists if the URL changes.','u4','not-started']
-   ]},
-   {id:'t6',name:'Provision the team identities',description:'Create named user accounts and map each email to a stable user ID and informational role.',ownerId:'u4',priority:'medium',status:'not-started',steps:[
-    ['Create Marwa, Zyad, Nadine, Omar, Haneen and Dina','Use each team member’s real work email; never put passwords in the project tracker or source code.','u4','not-started'],
-    ['Record the Cognito user sub and email mapping','Use stable IDs u1–u6 in the UI data contract and link each to the appropriate Cognito identity.','u3','not-started'],
-    ['Test sign-in, sign-out, and token expiry','Verify callback URLs and that expired or missing tokens cannot access protected routes.','u4','not-started']
-   ]}
-  ]},
-  {id:'p4',name:'04 · Amazon DynamoDB Data Model',description:'Create a single-table model for root projects/jobs, nested tasks/follow-ups, activity records and an owner index for Assigned to me.',ownerId:'u6',status:'not-started',due:20,tasks:[
-   {id:'t7',name:'Create the Team Follow-Up data table',description:'Use a root partition for all items and audit entries belonging to one project/job.',ownerId:'u6',priority:'urgent',status:'not-started',steps:[
-    ['Create the TeamFollowUpData table','Set partition key pk (String), sort key sk (String), and on-demand capacity.','u6','not-started'],
-    ['Add the OwnerIndex global secondary index','Set gsi1pk (String) as partition key and gsi1sk (String) as sort key; project all attributes.','u6','not-started'],
-    ['Define item and activity key conventions','Use ROOT#rootId as pk, ITEM#itemId for item rows, and ACTIVITY#timestamp#eventId for immutable activity rows.','u3','not-started']
-   ]},
-   {id:'t8',name:'Validate access patterns and data retention',description:'Support root list, one-root hierarchy, assigned-to-me queries and historical activity without overwriting audit rows.',ownerId:'u6',priority:'high',status:'not-started',steps:[
-    ['Add the owner index fields to item records','Store gsi1pk=OWNER#ownerId and gsi1sk=UPDATED#timestamp#itemId for assigned-item sorting.','u6','not-started'],
-    ['Keep activity records immutable','Append a new event for creation, changes, status transitions and deletion; never delete old child events when deleting a child.','u3','not-started'],
-    ['Test query sorting and pagination behavior','Verify newest-first activity and define a page-size/continuation strategy before large data volumes.','u6','not-started']
-   ]}
-  ]},
-  {id:'p5',name:'05 · AWS Lambda Application API',description:'Implement the API handler, validate the project/job/task/follow-up rules server-side, and append audit entries for every mutation.',ownerId:'u3',status:'not-started',due:23,tasks:[
-   {id:'t9',name:'Create the team-follow-up-api function',description:'Use a supported Python runtime, the least-privilege role, table-name environment variable and structured JSON responses.',ownerId:'u3',priority:'urgent',status:'not-started',steps:[
-    ['Create the Lambda function and attach the execution role','Choose Python 3.13 or the current supported Python runtime in the console; use the custom role from IAM.','u3','not-started'],
-    ['Configure TABLE_NAME and TEAM_MEMBERS_JSON','Set the table name and a JSON list mapping u1–u6 to real emails, names and display-only job titles.','u3','not-started'],
-    ['Add the CRUD and query handler','Support root listing/creation, root-scoped item/activity reads, child create/update/delete, team listing, and assigned-to-me query.','u3','not-started']
-   ]},
-   {id:'t10',name:'Enforce domain rules and audit integrity',description:'Reject invalid parent/type combinations in the API even if a client UI sends a malformed request.',ownerId:'u3',priority:'urgent',status:'not-started',steps:[
-    ['Reject tasks under a job or follow-up','Tasks may belong only to a project; follow-ups may belong to a project, job, or task.','u3','not-started'],
-    ['Validate owner IDs against the team directory','Allow an explicit None/unassigned value when the form supports it, and record who made the change.','u3','not-started'],
-    ['Log status changes separately from ordinary edits','Record time, actor, item snapshot, action and root ID to support parent-scoped history.','u3','not-started']
-   ]}
-  ]},
-  {id:'p6',name:'06 · Amazon API Gateway HTTP API',description:'Expose the Lambda handler through named routes, configure CORS for the deployed front end and protect business operations with Cognito JWT validation.',ownerId:'u4',status:'not-started',due:24,tasks:[
-   {id:'t11',name:'Create routes and Lambda integration',description:'Create an HTTP API and attach the same handler to the required REST-like route patterns.',ownerId:'u4',priority:'high',status:'not-started',steps:[
-    ['Create the HTTP API and Lambda integration','Choose the existing team-follow-up-api Lambda function as the integration target.','u4','not-started'],
-    ['Add GET /roots and GET /assigned','Return parent projects/jobs and the current user’s assigned work, respectively.','u4','not-started'],
-    ['Add root, activity and child mutation routes','Configure GET /roots/{rootId}, GET /roots/{rootId}/activity, POST /roots, POST /roots/{rootId}/items, PATCH and DELETE child routes.','u4','not-started']
-   ]},
-   {id:'t12',name:'Configure JWT authorizer and CORS',description:'Verify access tokens and allow browser requests only from the expected CloudFront origin.',ownerId:'u4',priority:'urgent',status:'not-started',steps:[
-    ['Create a JWT authorizer for the Cognito user pool','Set issuer URL to the pool issuer and audience to the app client ID; require it on business routes.','u4','not-started'],
-    ['Configure CORS with the CloudFront origin','Allow only required methods and headers such as Authorization and Content-Type; avoid wildcard origins for the real app.','u4','not-started'],
-    ['Deploy and save the API invoke URL','Test an unauthenticated request is denied and an authenticated request succeeds.','u4','not-started']
-   ]}
-  ]},
-  {id:'p7',name:'07 · Amazon S3 & CloudFront Front End',description:'Deploy the browser interface to a private S3 bucket and deliver it through CloudFront with Origin Access Control and HTTPS.',ownerId:'u5',status:'not-started',due:18,tasks:[
-   {id:'t13',name:'Prepare and upload static web assets',description:'Create a deployment folder containing index.html, CSS, JavaScript and any local assets needed by the UI.',ownerId:'u5',priority:'high',status:'not-started',steps:[
-    ['Prepare the front-end entry point and assets','Rename the final web-app entry file to index.html and keep scripts/styles in the same release folder.','u5','not-started'],
-    ['Create a private S3 bucket','Use a globally unique bucket name, keep Block Public Access enabled, and use Bucket owner enforced object ownership.','u5','not-started'],
-    ['Upload the static assets','Upload index.html and all referenced files; do not paste AWS credentials or client secrets into the front end.','u5','not-started']
-   ]},
-   {id:'t14',name:'Create CloudFront with Origin Access Control',description:'Keep the S3 origin private and use the default CloudFront HTTPS domain for the first lab release.',ownerId:'u5',priority:'urgent',status:'not-started',steps:[
-    ['Create a CloudFront distribution with the S3 bucket origin','Choose the regular S3 bucket origin, not the S3 website endpoint, to use OAC.','u5','not-started'],
-    ['Enable Origin Access Control and sign requests','Use the recommended always-sign option and apply the generated bucket policy scoped to the distribution.','u5','not-started'],
-    ['Set default root object to index.html and wait for deployment','Open the CloudFront domain over HTTPS and verify the page and its assets load.','u5','not-started']
-   ]}
-  ]},
-  {id:'p8',name:'08 · Front End, Localization & API Integration',description:'Wire the browser UI to Cognito and API Gateway, keep English/Arabic UI behavior, and replace local-only persistence for shared production data.',ownerId:'u5',status:'not-started',due:28,tasks:[
-   {id:'t15',name:'Configure sign-in and API client',description:'Complete the hosted-login redirect, token management, API base URL, and error states.',ownerId:'u5',priority:'urgent',status:'not-started',steps:[
-    ['Add the Cognito domain, app client ID and CloudFront callback','Keep these public browser config values separate from secrets; no client secret belongs in JavaScript.','u5','not-started'],
-    ['Implement authorization-code flow with PKCE','Store the transient verifier safely, exchange the code for tokens, and handle sign-out/token expiry.','u5','not-started'],
-    ['Send the access token in the Authorization header','Call the protected API over HTTPS and show useful messages for 401, 403, validation and network errors.','u5','not-started']
-   ]},
-   {id:'t16',name:'Connect the existing UI to shared APIs',description:'Replace localStorage-backed work data with API reads and writes while preserving the established component hierarchy and audit UI.',ownerId:'u3',priority:'urgent',status:'not-started',steps:[
-    ['Map parent search and Assigned to me to API responses','Use GET /roots and GET /assigned; filter/sort by update/create dates and retain the page-relative sidebar behavior.','u3','not-started'],
-    ['Wire project/job/task/follow-up CRUD forms','Use root-scoped read/write routes and keep project/job/task/follow-up type validation in both UI and Lambda.','u3','not-started'],
-    ['Wire newest-first activity history','Read the root’s activity records and filter by date, user and action; display a child’s historical events under its root.','u3','not-started'],
-    ['Preserve English/Arabic and light/dark controls','Translate UI labels and user display names/roles only; keep entered work-item text unchanged and support RTL.','u5','not-started']
-   ]}
-  ]},
-  {id:'p9',name:'09 · Amazon CloudWatch, Budgets & Monitoring',description:'Create log visibility and basic cost controls so the team can debug the lab and notice unexpected spend.',ownerId:'u6',status:'not-started',due:29,tasks:[
-   {id:'t17',name:'Configure diagnostic logs and alarms',description:'Use CloudWatch Logs for Lambda execution, API access metrics, and an alert for repeated errors.',ownerId:'u6',priority:'high',status:'not-started',steps:[
-    ['Inspect the Lambda log group','Confirm logs contain request IDs and sanitized failures, never passwords, tokens or secrets.','u6','not-started'],
-    ['Review API Gateway 4xx/5xx and Lambda error metrics','Create a simple CloudWatch alarm for errors after establishing baseline traffic.','u6','not-started'],
-    ['Create an AWS Budget notification','Send email alerts at agreed thresholds and review actual costs during the lab.','u6','not-started']
-   ]},
-   {id:'t18',name:'Document runbook and recovery procedures',description:'Prepare a simple operations note for deploy, cache invalidation, auth failures, rollback and cleanup.',ownerId:'u6',priority:'medium',status:'not-started',steps:[
-    ['Document the deploy and cache-invalidation procedure','Record which files change, how to invalidate /index.html and how to verify CloudFront refresh.','u5','not-started'],
-    ['Document common authentication and CORS failures','Include issuer/audience mismatch, callback URL mismatch, expired token and missing allow-origin cases.','u4','not-started'],
-    ['Record owners and escalation path','Marwa coordinates the team; component engineers retain operational responsibility for their assigned services.','u1','not-started']
-   ]}
-  ]},
-  {id:'p10',name:'10 · End-to-End Validation & Handover',description:'Validate real user journeys and data integrity before calling the first release complete.',ownerId:'u1',status:'not-started',due:30,tasks:[
-   {id:'t19',name:'Run functional, security and usability checks',description:'Exercise the app using at least two team accounts and test the required nesting and history behavior.',ownerId:'u1',priority:'urgent',status:'not-started',steps:[
-    ['Test project vs temporary job child rules','Verify a project can contain tasks and direct follow-ups; a job contains follow-ups only; a task contains follow-ups only.','u1','not-started'],
-    ['Test assignments and cross-user visibility','Create an item as one account, assign it to a second account, and confirm Assigned to me is correct for each.','u1','not-started'],
-    ['Test audit history, sorting and deleted-child retention','Confirm events show newest first, include actor/date/action, and historical child events remain visible in root history.','u1','not-started'],
-    ['Test responsive layout and accessibility basics','Check desktop/mobile, keyboard focus, empty results, long names, dark dropdowns and Arabic RTL.','u5','not-started']
-   ]},
-   {id:'t20',name:'Complete launch review and cleanup decisions',description:'Review cost, data, open issues, backup/export requirements and the resources that should remain deployed.',ownerId:'u1',priority:'high',status:'not-started',steps:[
-    ['Run a final smoke test from the CloudFront URL','Test login, parent/child CRUD, assigned search, activity history, language/theme switching and refresh behavior.','u1','not-started'],
-    ['Review security and spend before team-wide use','Check IAM scope, S3 public access block, OAC policy, Cognito callback list, API JWT authorizer and Budget status.','u2','not-started'],
-    ['Approve handover and identify remaining gaps','Separate features validated for release from remaining production hardening, including backups, throttling and recovery testing.','u1','not-started']
-   ]}
-  ]}
+ const memberIdAt=index=>users[((index%users.length)+users.length)%users.length].id;
+ const step=(name,description,ownerId='u2',status='not-started')=>({name,description,ownerId,status});
+ const task=(name,description,ownerId,priority,status,steps)=>({name,description,ownerId,priority,status,steps});
+ const chapters=[
+  {
+   id:'p1',name:'01 · Project Scope, Target Architecture & Request Flow',
+   description:'Project handbook chapter: define the shared-workspace requirements, current console-first architecture, trust boundaries, API request path, data ownership, deployment assumptions, and release acceptance criteria. Treat the current-account inventory as a dated operator-reported snapshot, not a guarantee that every resource is deployed.',
+   ownerId:'u1',status:'completed',due:12,
+   tasks:[
+    task('1.1 Define the problem, users and functional scope','Describe the team workspace as a shared, authenticated system for projects, temporary jobs, tasks, follow-ups, assignments, priorities, archive, and auditable changes.', 'u1','high','completed',[
+     step('Record the item hierarchy and valid parent rules','Projects and Jobs are top-level. A Project can contain Tasks and direct Follow-ups; a Job can contain direct Follow-ups only; a Task can contain Follow-ups only; a Follow-up is a leaf item. Enforce these rules in both UI and Lambda.','u1','completed'),
+     step('Define assignment, status and priority semantics','Capture Not started, In progress, On hold and Completed. Child items support Low, Medium, High and Urgent priority. Assignment is metadata used by Assigned to me, not a privilege grant.','u2','completed'),
+     step('Define collaboration and audit expectations','Every team member sees shared server-backed changes. Store immutable creation, update, status, deletion and restore events with actor, timestamp, item snapshots and root/parent context.','u1','completed'),
+     step('Record the user-facing experience requirements','Maintain English and Arabic UI labels, RTL layout, light/dark themes, responsive desktop/mobile controls, useful empty states and accessible loading/error indicators. User-entered item text remains as entered.','u5','completed')
+    ]),
+    task('1.2 Document the target AWS architecture','Use Amplify Hosting for the built frontend, Cognito for identity, API Gateway HTTP API for authenticated requests, Python Lambda for validation/orchestration, four DynamoDB tables for application records, CloudWatch for operations, and AWS Budgets for cost alerts.','u2','high','completed',[
+     step('Place regional services in us-east-1','The project target is US East (N. Virginia), us-east-1. Keep Cognito, DynamoDB, Lambda, API Gateway and the hosting build configuration aligned with the intended Region. AWS Budgets is account-level.','u2','completed'),
+     step('Separate hosting, identity, API, compute and persistence','Amplify builds and serves dist/. Cognito authenticates members. API Gateway validates JWTs. Lambda applies domain rules and table access. DynamoDB stores Items, Activity, Users and Archive.','u2','completed'),
+     step('Identify monitoring and cost-control boundaries','CloudWatch logs and metrics support troubleshooting; dashboards and alarms report errors/throttles. The monthly AWS Budget sends notifications but does not cap spend or stop resources.','u6','completed'),
+     step('Keep the manual and automated deployment methods distinct','The AWS Management Console runbook is primary. backend/template.yaml is an optional full-stack SAM/CloudFormation route for a fresh or isolated environment; it creates resources from scratch and does not adopt the console-created tables.','u1','completed')
+    ]),
+    task('1.3 Trace the sign-in and API request flow','Document the complete secure request sequence and the distinction between identity verification, application profile mapping, authorization and data persistence.', 'u2','high','completed',[
+     step('Sign in through the browser using Cognito','The current frontend uses direct Cognito SRP sign-in with a public app client; it does not require a managed-login domain or hosted-UI callback URLs. Never add a client secret to browser code.','u4','completed'),
+     step('Send the access token to API Gateway','The frontend sends the Cognito access token in the Authorization header over HTTPS. The HTTP API JWT authorizer checks issuer and audience before invoking the handler.','u2','completed'),
+     step('Resolve the trusted team profile in Lambda','The handler maps the verified Cognito sub to an enabled Users-table profile. It treats the profile userId as the trusted actor/assignee identity and rejects missing or ambiguous mappings.','u3','completed'),
+     step('Validate, persist and audit the operation','Lambda validates hierarchy and business fields, writes item changes with activity events transactionally where required, returns sanitized JSON, and emits diagnostic logs without tokens or secrets.','u3','completed')
+    ]),
+    task('1.4 Establish source of truth and deployment ordering','Use the repository documentation as the detailed operating manual and the console account inventory as a dated checkpoint; preserve the existing resource names unless deliberately creating an isolated environment.', 'u1','medium','completed',[
+     step('Record the source repositories and primary branch','Frontend and AWS infrastructure/API code are maintained in retzed/Team_Follow-Up_AWS-Deployment on main. The browser-only demo is maintained separately in retzed/Team_Follow-Up and is not an AWS database.','u1','completed'),
+     step('Deploy hosting before final CORS configuration','Create Amplify and record its exact branch HTTPS origin. Then configure API Gateway CORS against that exact origin; update Amplify variables after the API invoke URL is available.','u5','completed'),
+     step('Reuse resources only when names and schema match','Inspect existing Cognito and DynamoDB resources before creation. Do not deploy the default full-stack template into the same account/Region when matching manually created resource names already exist.','u2','completed'),
+     step('Keep generated identifiers and secrets in their proper places','Pool/client IDs and the API URL are public frontend configuration, but GitHub tokens, access keys, passwords, client secrets, private emails and real Cognito sub values must not be committed or put in screenshots.','u1','completed')
+    ]),
+    task('1.5 Define the release gates and evidence','Require a successful build, authenticated API flow, correct hierarchy, complete audit history, archive/restore validation, localization checks, and monitoring checks before shared use.', 'u1','high','completed',[
+     step('Prepare evidence for each service boundary','Capture safe console state for Cognito, tables/indexes, Lambda environment, API authorizer/CORS, Amplify build and CloudWatch resources. Redact credentials and personal identifiers.','u5','completed'),
+     step('Make success criteria observable','Record expected HTTP status, item/event counts, selected-root behavior, loading/retry behavior, current deployment URL and the exact commit used for the validation run.','u3','completed'),
+     step('Separate verified behavior from pending account work','A passing unit/build test does not prove the live account is deployed. Check the latest implementation record and verify the actual console before assuming a resource exists.','u1','completed'),
+     step('Use the demo for heavy synthetic workspace testing','The browser-only demo dataset is synthetic and local to the visitor. Use it to exercise large history lists and loading indicators; do not seed fabricated load-test records into the AWS deployment account.','u1','completed')
+    ])
+   ]
+  },
+  {
+   id:'p2',name:'02 · AWS Account, Region, Resource Naming & Budget',
+   description:'Prepare the correct AWS account and Region, verify operator permissions, use predictable resource names, establish cost notifications early, and understand the limitations of provisioned-capacity and free-tier assumptions.',
+   ownerId:'u2',status:'in-progress',due:16,
+   tasks:[
+    task('2.1 Confirm the account, access and Region','Start from the intended AWS account and the us-east-1 console. Verify that the operator role can create/configure only the required lab resources and that there is a safe way to review charges.', 'u2','high','completed',[
+     step('Verify the AWS account and switch to us-east-1','Open the account menu and Region selector. Select US East (N. Virginia), us-east-1, for the application services; do not rely on the browser remembering a previous Region.','u2','completed'),
+     step('Use named console roles and MFA where available','Use an administrator/operator role that is appropriate for lab setup. Enable MFA for human accounts as required by account policy; do not distribute root-user credentials or access keys.','u1','completed'),
+     step('Check credits, free-plan status and pricing assumptions','The implementation record reports a Free account plan as of 15 October 2026, but credits and free-tier eligibility can change. Verify the actual billing view and current service pricing before adding capacity or optional services.','u6','in-progress'),
+     step('Record the date and confidence of account observations','Mark values taken from operator-confirmed console state separately from code-derived target settings. Recheck dates, IDs, and pending resources whenever resuming the lab.','u1','completed')
+    ]),
+    task('2.2 Standardize resource names and ownership','Use a consistent TeamFollowUp prefix for the existing manual path and document every generated AWS identifier. Avoid name collisions when experimenting with the optional automation stack.', 'u2','medium','completed',[
+     step('Keep the four physical table names consistent','The console target names are TeamFollowUp-Items, TeamFollowUp-Activity, TeamFollowUp-Users and TeamFollowUp-Archive. The optional template uses the same default prefix and cannot adopt existing tables.','u2','completed'),
+     step('Record generated service IDs without credentials','Maintain the pool ID, public client ID, API invoke URL, Amplify app/branch URL, Lambda function name and CloudWatch resource names in the private operational record, then update runtime settings from those actual values.','u2','completed'),
+     step('Tag resources where supported','Use tags such as Project=TeamFollowUp, Environment=Learning, and Owner=Team. Tags improve cost allocation and cleanup but are not a substitute for least-privilege access.','u6','not-started'),
+     step('Review naming collisions before any new environment','Before creating a new stack, search the target Region for the resource names it will create. For the current account, a separate automation experiment should use a unique prefix such as TeamFollowUpAuto.','u2','completed')
+    ]),
+    task('2.3 Configure AWS Budgets before expanding the stack','Create or verify a recurring USD $1 monthly budget using unblended cost and actual/forecast notifications. This is an early-warning control, not a hard spend limit.', 'u6','urgent','completed',[
+     step('Create the TeamFollowUp-Monthly-Cost budget','Set amount USD 1, monthly recurring period, and the Unblended costs metric or its current console equivalent. Keep the notification recipient private and do not commit it to GitHub.','u6','completed'),
+     step('Add actual-cost notifications at 50%, 80% and 100%','Configure three actual cost thresholds: $0.50, $0.80 and $1.00 against a $1 budget. Confirm that the intended email address is entered correctly.','u6','completed'),
+     step('Add the 100% forecast notification','Configure the forecasted threshold at 100%. Budgets evaluations and email delivery can lag; the budget does not pause, stop or cap resources.','u6','completed'),
+     step('Test the notification destination and monitor the billing page','Check that notifications are configured and review Bills/Cost Explorer as usage appears. Do not infer that every AWS service is free just because an account has a free plan.','u6','in-progress')
+    ]),
+    task('2.4 Baseline the low-capacity DynamoDB cost model','Preserve the small target table/index capacities unless workload evidence supports a reviewed change. A few concurrent reads/writes can throttle at these settings.', 'u6','high','in-progress',[
+     step('Keep each base table at 1 RCU and 1 WCU initially','The target uses provisioned Standard tables with 1 read capacity unit and 1 write capacity unit per base table. This is a deliberately small learning configuration, not a production throughput recommendation.','u6','completed'),
+     step('Keep each GSI at 1 RCU and 1 WCU initially','Three Items GSIs plus two Archive GSIs add five indexed capacity allocations. Four base tables plus five GSIs total 9 RCUs and 9 WCUs in the recorded target.','u6','completed'),
+     step('Avoid enabling optional features without a decision','The low-cost baseline records auto scaling, point-in-time recovery, deletion protection and Streams as off, with AWS-owned default encryption. Review recovery risk before copying these settings to important data.','u2','in-progress'),
+     step('Monitor throttling before adjusting capacity','Correlate throttles, latency, Lambda errors and API 5xx metrics. Make capacity changes intentionally and check the resulting monthly cost rather than increasing throughput blindly.','u6','not-started')
+    ]),
+    task('2.5 Create a safe change and cleanup practice','Make each resource creation, configuration change, deploy and deletion traceable to a reviewed step in the deployment guide.', 'u1','medium','not-started',[
+     step('Keep a change log for resource modifications','Record the resource name, setting changed, previous/current values, operator, time, reason and validation result. Never place passwords, GitHub tokens or private notification addresses in the log.','u1','not-started'),
+     step('Identify resources whose deletion can retain data','The optional template applies Retain policies to DynamoDB tables. Deleting its stack may leave tables behind; inventory and deliberately handle retained data before recreating same-named resources.','u2','not-started'),
+     step('Inspect monthly service usage after each lab session','Review DynamoDB capacity, Lambda/API invocations, CloudWatch log ingestion/retention, hosting traffic and any optional services. A small budget is an alert only.','u6','not-started'),
+     step('Require a second review for destructive actions','Before deleting tables, pools, stacks or deployment artifacts, confirm target account/Region, data export/retention, resource dependencies and a recovery plan.','u1','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p3',name:'03 · Amazon Cognito: User Pool, Client & Team Identity Mapping',
+   description:'Configure the existing public browser client securely, keep self-registration disabled, map Cognito identities to stable application user IDs, and ensure the API trusts the verified identity rather than client-supplied actor fields.',
+   ownerId:'u4',status:'in-progress',due:19,
+   tasks:[
+    task('3.1 Verify the Cognito User Pool and sign-in options','Reuse the current pool when its settings match. The 15 October 2026 implementation snapshot records pool us-east-1_7dYZw2Is6 and public client Team_FollowUp / 7id8c2g27fvbh365atqntqurir as operator-reported values; verify live console state before relying on them.', 'u4','high','completed',[
+     step('Confirm pool identity and Region','Inspect Cognito in us-east-1 and match the actual User Pool ID to the private deployment record. Do not create a duplicate pool because the console opened to a different Region.','u4','completed'),
+     step('Keep user self-registration disabled','Accounts are administrator-managed for this internal workspace. Verify the pool's sign-up settings and avoid accidental public registration.','u4','completed'),
+     step('Review the current authentication flow','The current frontend uses direct Cognito USER_SRP_AUTH with a public app client. A managed-login domain and hosted-UI callback URLs are not required for this direct flow.','u4','completed'),
+     step('Record the state as dated and operator-reported','Pool/client IDs are public runtime configuration, not proof that a service is working. Recheck status whenever a pool or client is replaced and never put a client secret in the browser.','u1','completed')
+    ]),
+    task('3.2 Add and protect the custom team identifier','Use custom:teamUserId to connect each Cognito account to the application’s stable user row. It is an identity mapping attribute, not a user-editable privilege field.', 'u4','high','in-progress',[
+     step('Create custom:teamUserId as a String attribute','Use the required custom attribute in the user-pool schema with suitable length constraints. Record its actual mutability and permissions in the implementation record.','u4','completed'),
+     step('Allow the frontend client to read but not write the mapping','The operator confirmed Read enabled and Write disabled for Team_FollowUp on 15 October 2026. Check every other app client and disable WriteAttributes for custom:teamUserId where it is not trusted.','u4','in-progress'),
+     step('Do not treat a role label as authorization','Team Leader and AWS Engineer are display-only job titles. Access decisions come from Cognito validation, enabled profile mapping, server validation and IAM, not the visible role string.','u1','completed'),
+     step('Keep identity administration outside Lambda permissions','The application execution role must not have Cognito user-administration rights. A trusted setup operator creates users and fixes identity mappings separately.','u2','completed')
+    ]),
+    task('3.3 Configure the public app client for browser use','A browser application cannot keep a client secret. Align the app client with direct sign-in and the runtime configuration expected by the frontend build.', 'u4','high','completed',[
+     step('Use a public client with no client secret','Verify the frontend app client is suitable for a browser and has no client secret. Never copy a secret into TEAM_FOLLOW_UP_* frontend variables or JavaScript.','u4','completed'),
+     step('Review enabled authentication flows and MFA state','Confirm the direct SRP flow used by the current code is enabled. The dated setup snapshot reports MFA Off; follow the team's identity policy and explicitly review the tradeoff before broader use.','u4','completed'),
+     step('Keep app-client attribute permissions least-privilege','Limit readable/writable attributes to those required. In particular, the browser client must not be allowed to change custom:teamUserId or impersonate another application identity.','u4','in-progress'),
+     step('Record the real pool issuer and public client ID','The issuer has the form https://cognito-idp.us-east-1.amazonaws.com/POOL_ID. The public client ID is used by the client and JWT audience configuration; verify both values against the live pool.','u2','completed')
+    ]),
+    task('3.4 Create the six team users and link DynamoDB profiles','Provision Marwa, Zyad, Nadine, Omar, Haneen and Dina with stable IDs u1–u6. The Users table is the server-side mapping between Cognito sub and app user identity.', 'u4','urgent','not-started',[
+     step('Create administrator-managed accounts for all six teammates','Use each teammate’s work email through the trusted Cognito administration interface. Do not store temporary passwords, reset links or private email addresses in this tracker.','u4','not-started'),
+     step('Assign each user a unique custom:teamUserId','Set Marwa=u1, Zyad=u2, Nadine=u3, Omar=u4, Haneen=u5 and Dina=u6. Check duplicates and ensure the value cannot be changed through the public app client.','u4','not-started'),
+     step('Run the trusted profile seeder in dry-run mode first','Use backend/scripts/seed_user_profiles_from_cognito.py with the actual pool ID, Users table and us-east-1. Review expected names/IDs and mapping results before running the write operation.','u3','not-started'),
+     step('Verify Users rows without exposing Cognito subject values','Each enabled profile must include userId, displayName, role, enabled and cognitoSub. The small table has no cognitoSub GSI, so Lambda scans it intentionally; do not log real subject values.','u3','not-started')
+    ]),
+    task('3.5 Validate sign-in, sign-out, expiry and failure paths','Prove a real browser session gets a valid token and that protected routes fail safely for missing, expired, unmapped or disabled identities.', 'u4','high','not-started',[
+     step('Verify sign-in and current team-user selection','Sign in with a provisioned email/account, inspect the mapped team user in the UI, and confirm creator/actor identity derives from the trusted profile rather than editable form values.','u4','not-started'),
+     step('Verify sign-out clears the active session','Use the application sign-out action and confirm the protected workspace no longer operates under the previous user's identity. Avoid printing tokens in debugging output.','u4','not-started'),
+     step('Test missing token and unknown profile cases','A missing/invalid JWT should be rejected by API Gateway; a verified Cognito subject without an enabled Users mapping should be denied by Lambda. Capture only sanitized status and message.','u3','not-started'),
+     step('Test expired tokens and recovery','Allow an access token to expire or simulate the error path in unit tests. The UI should request sign-in again or show a clear recoverable message rather than silently treating the visitor as another user.','u4','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p4',name:'04 · DynamoDB Items Table, Hierarchy & Indexes',
+   description:'Create or verify the active work-item table and three exact GSIs. This is the current physical model, not the older single-table ROOT#/ITEM# design that appeared in early planning drafts.',
+   ownerId:'u6',status:'in-progress',due:20,
+   tasks:[
+    task('4.1 Create or verify TeamFollowUp-Items','The physical primary key is itemId (String) with no sort key. Preserve the handler/schema contract; do not create a replacement table or change keys on a populated table without an explicit migration plan.', 'u6','urgent','completed',[
+     step('Set the primary key to itemId, type String','Create TeamFollowUp-Items using itemId as the only primary-key attribute. Do not add a sort key. Wait until the table reaches ACTIVE before proceeding.','u6','completed'),
+     step('Choose Standard class and Provisioned capacity','Use the documented baseline of 1 RCU / 1 WCU. Keep auto scaling, PITR, deletion protection and Streams off only for the current learning baseline after considering recovery risk.','u6','completed'),
+     step('Verify encryption and table status','Use DynamoDB’s AWS-owned default encryption key as documented and verify the table is ACTIVE. Record the actual configuration and date rather than assuming the console accepted all changes.','u6','completed'),
+     step('Confirm the UI-to-storage field mapping','The public item fields include type, name, description, status, priority, parentId, rootParentId, ownerId, assignedTo, workspaceKey, creator/editor IDs, timestamps, dueDate and version.','u3','completed')
+    ]),
+    task('4.2 Configure ParentIdIndex for child listings','Tasks and Follow-ups need to be queried by parentId and ordered by createdAt. The deployed handler queries this GSI when walking item hierarchies.', 'u6','high','completed',[
+     step('Create ParentIdIndex with parentId / createdAt','Partition key parentId (String), sort key createdAt (String), projection ALL, 1 RCU and 1 WCU. Keep attribute names and capitalization exact.','u6','completed'),
+     step('Verify project/job parent rows remain top-level','Project and Job records omit parentId. Task rows use the Project ID. Follow-ups use a valid Project, Job or Task parent according to domain rules.','u3','completed'),
+     step('Wait for the index to become ACTIVE','Create indexed tables/indexes sequentially and wait for ACTIVE before creating the next GSI. This reduces confusion from concurrent index-build limits.','u6','completed'),
+     step('Test one parent query and pagination','Query children for a known root and verify returned items have the expected parent/root IDs and stable ordering. Confirm every-page logic handles LastEvaluatedKey/nextOffset correctly.','u3','not-started')
+    ]),
+    task('4.3 Configure AssignedToIndex for personal work queues','The frontend uses ownerId as the business field; Lambda materializes assignedTo for the GSI. The index sort key is updatedAt so changed work can appear in the correct order.', 'u6','high','completed',[
+     step('Create AssignedToIndex with assignedTo / updatedAt','Partition key assignedTo (String), sort key updatedAt (String), projection ALL, 1 RCU and 1 WCU. Match the schema reference exactly.','u6','completed'),
+     step('Materialize ownerId as assignedTo','Lambda derives assignedTo from the validated ownerId and removes the index attribute from untrusted client input. Null/unassigned items should not get a bogus owner index key.','u3','completed'),
+     step('Test the assigned-to-me API path','GET /items/assigned-to-me resolves the current trusted profile and returns assigned records only. Verify an item assigned to another user does not leak into the current user’s results.','u3','not-started'),
+     step('Check updates change the index sort value','A committed item edit refreshes updatedAt and updates the GSI projection. Test that assignment/status edits keep owner metadata and last-updated information consistent.','u6','not-started')
+    ]),
+    task('4.4 Configure WorkspaceIndex for Projects and Jobs','The sidebar’s root-item list is served from WorkspaceIndex, which only indexes top-level records that carry workspaceKey=WORKSPACE.', 'u6','high','completed',[
+     step('Create WorkspaceIndex with workspaceKey / createdAt','Partition key workspaceKey (String), sort key createdAt (String), projection ALL, 1 RCU and 1 WCU. Verify the name is exactly WorkspaceIndex.','u6','completed'),
+     step('Set workspaceKey only on top-level records','Lambda writes workspaceKey=WORKSPACE for Project and Job records. Child items omit this field and are retrieved through parent/root indexes.','u3','completed'),
+     step('Keep top-level bootstrap lightweight','GET /items?scope=top-level returns only Projects/Jobs and profile data is loaded separately. Do not scan all descendants or Activity during application startup.','u3','completed'),
+     step('Validate root sorting and filtering','Check updated/created date sorting and query filters without making a root list request accidentally include tasks/follow-ups. Confirm page size and offsets are handled.','u6','not-started')
+    ]),
+    task('4.5 Verify integrity, capacity and schema drift','Ensure the physical table/index design remains aligned with backend/table-schema.json, the Lambda implementation, acceptance tests and console documentation.', 'u6','high','in-progress',[
+     step('Compare all index names, keys, projections and capacity','Confirm ParentIdIndex, AssignedToIndex and WorkspaceIndex with their exact partition/sort keys, All projections and 1 RCU/1 WCU values. Do not add undocumented indexes.','u6','completed'),
+     step('Preserve rootParentId and parentId semantics','rootParentId identifies the top-level Project/Job for each child. parentId identifies the direct parent. Validate tree shape server-side and prevent Tasks under Jobs.','u3','completed'),
+     step('Keep server-owned fields under Lambda control','Client input must not override itemId, rootParentId, createdAt, updatedAt, creator/editor IDs, deletedAt, version, workspaceKey or index attributes.','u3','in-progress'),
+     step('Record a deliberate migration before schema changes','A new GSI, key rename, billing change or table replacement must be reviewed across schema JSON, IAM, handler, tests, deployment docs and cost effects before deployment.','u2','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p5',name:'05 · DynamoDB Activity, Users & Archive Tables',
+   description:'Complete the four-table model: append-only Activity records, small trusted Users mappings and an Archive table that preserves item hierarchy and content. Keep Activity and Users without GSIs according to the current schema.',
+   ownerId:'u6',status:'in-progress',due:21,
+   tasks:[
+    task('5.1 Create or verify TeamFollowUp-Activity','Activity has the composite primary key itemId (String) plus activityKey (String), where activityKey is the UTC ISO timestamp followed by # and the unique event ID.', 'u6','urgent','completed',[
+     step('Create the Activity partition and sort keys','Use itemId as partition key and activityKey as sort key, both String. Base table capacity is 1 RCU / 1 WCU; do not add an Activity GSI in the current contract.','u6','completed'),
+     step('Write the real composite sort key consistently','Build activityKey as event timestamp + # + event ID. eventId is a regular attribute, not the physical primary key. Keep timestamps UTC and sort-key values unique for one item.','u3','completed'),
+     step('Store sufficient event snapshots','Keep eventId, itemId, item name/type snapshots, rootParentId/name/type, parentId, ancestorIds, actor user ID, action, kind, at, and bulk-operation counts where applicable.','u3','completed'),
+     step('Verify the table has no undocumented GSIs','The application uses Query for one item’s partition and Scan for application-wide history because this table has no GSI. Account for Scan latency/capacity when explaining global history.','u6','completed')
+    ]),
+    task('5.2 Protect append-only activity history','Write events atomically with the item mutation and keep historical records when an item or subtree is archived. Do not allow direct browser writes to the Activity table.', 'u3','urgent','in-progress',[
+     step('Create events server-side from validated item state','Lambda supplies actor identity, event time, action and canonical snapshots. Do not trust a browser-supplied actor ID or action text as the authoritative event.','u3','completed'),
+     step('Commit item changes and events transactionally','Use DynamoDB TransactWriteItems for supported item/event changes. If the transaction fails, show a conflict/error and preserve consistency rather than displaying an uncommitted activity event.','u3','completed'),
+     step('Cover create, edit, status and delete events','Capture item creation, relevant field edits, status transitions and cascade-delete summaries. Avoid producing one duplicate delete event for every descendant when one user action archives a subtree.','u3','in-progress'),
+     step('Keep history after archive and restore','Archive removes the active item records but Activity remains append-only. Root history should still find events from archived descendants and restore events must also appear in the timeline.','u3','not-started')
+    ]),
+    task('5.3 Create or verify TeamFollowUp-Users','The Users table maps stable application userId values to display names, role labels, enabled state and Cognito sub. With only six users and no GSI, Lambda scans it deliberately for identity resolution.', 'u4','high','completed',[
+     step('Set userId as the sole String primary key','Create TeamFollowUp-Users with partition key userId (String) and no sort key or GSI. Keep table class Standard and the baseline 1 RCU / 1 WCU.','u4','completed'),
+     step('Populate the four expected profile attributes','Store userId, displayName, role and enabled plus cognitoSub for the verified Cognito identity. Avoid writing a profile with a missing or duplicate sub mapping.','u4','completed'),
+     step('Keep enabled state part of identity validation','Disabled profiles and unknown subjects must fail the mapping step. User display labels are not authorization levels and must not grant access by naming convention.','u3','completed'),
+     step('Limit profile changes to trusted administration','Normal workspace actions must not edit the six-person identity mapping or write Cognito custom attributes. Use the trusted admin procedure to correct profiles and review auditability.','u4','not-started')
+    ]),
+    task('5.4 Create or verify TeamFollowUp-Archive','Archive keeps the original item ID, type, content, statuses, priorities, hierarchy and timestamps plus archive metadata, with indexes for browsing and root grouping.', 'u6','high','completed',[
+     step('Set archiveId as the sole String primary key','Create TeamFollowUp-Archive with partition key archiveId (String), no sort key. Use Standard class, provisioned 1 RCU / 1 WCU and the documented encryption baseline.','u6','completed'),
+     step('Create GSI_ArchiveIndex with archivePK / archiveSort','Use partition key archivePK, sort key archiveSort, projection ALL, with 1 RCU / 1 WCU. It supports archive browsing in the current handler.','u6','completed'),
+     step('Create GSI_ArchiveRoot with archiveRootPK / archiveRootSort','Use partition key archiveRootPK, sort key archiveRootSort, projection ALL, with 1 RCU / 1 WCU. Keep the exact index name and attribute capitalization.','u6','completed'),
+     step('Preserve hierarchy metadata in each archive snapshot','Record archiveRootId/name/type, archiveParentId/name, archivedAt and archivedByUserId alongside the original content. Keep original IDs to reconnect historical audit events and restore relationships.','u3','completed')
+    ]),
+    task('5.5 Verify query patterns, consistency and documented limits','Use the physical schema as the contract for both manual setup and the optional full-stack template.', 'u6','high','not-started',[
+     step('Test single-item Activity with Query','Query Activity by itemId and sort by activityKey, newest first. Verify events are de-duplicated by eventId and normalized for UI field names.','u3','not-started'),
+     step('Test application-wide Activity with Scan','The global history endpoint scans the complete small Activity table because no GSI exists. Keep that read on demand and monitor performance as records grow.','u3','not-started'),
+     step('Test archive grouping by root','List Archive and verify children group under their archived Project/Job using archiveRootId even when the root name was captured only in snapshots.','u6','not-started'),
+     step('Verify total provisioned capacity','Four base tables at 1 RCU/1 WCU plus five GSIs at 1 RCU/1 WCU totals 9 RCUs and 9 WCUs. Document changes if the live console differs from the target.','u6','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p6',name:'06 · IAM Execution Role, Python Lambda & Business Logic',
+   description:'Configure the least-privilege runtime role, package the Python 3.12 Lambda handler, supply the four table names and logging level, and validate identities, hierarchy, transactional writes, archive/restore and sanitized errors server-side.',
+   ownerId:'u3',status:'not-started',due:23,
+   tasks:[
+    task('6.1 Build the Lambda execution role','Trust only the Lambda service and grant the function the logging actions and necessary table/index operations; do not grant human administration privileges.', 'u2','urgent','not-started',[
+     step('Create a role with the Lambda service trust','In IAM, create a service role trusted by lambda.amazonaws.com. Use a clear name such as TeamFollowUp-ApiExecutionRole and verify the trust relationship.','u2','not-started'),
+     step('Attach AWSLambdaBasicExecutionRole','Allow the standard CloudWatch log stream and log-event actions needed by the function. Use the documented 30-day log retention rather than unlimited log retention.','u2','not-started'),
+     step('Add table-scoped DynamoDB permissions','Scope GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan, BatchWriteItem and TransactWriteItems to the four exact table ARNs and required GSI ARNs; do not use a blanket wildcard over all AWS resources.','u2','not-started'),
+     step('Keep Cognito administration out of Lambda IAM','The handler reads the Users table but should not create users, reset passwords or administer pool settings. Use a trusted operator identity for setup scripts.','u2','not-started')
+    ]),
+    task('6.2 Package the backend for Python 3.12','Build a deployment ZIP with the handler and its runtime dependencies at the archive root. Avoid uploading the repository directory itself as a nested folder.', 'u3','urgent','not-started',[
+     step('Install the declared Lambda dependencies','From the repository root, use Python 3.12 and install backend/src/requirements.txt into a clean packaging folder. Keep build tools and test dependencies out of the Lambda ZIP.','u3','not-started'),
+     step('Copy handler.py to the ZIP root','Copy backend/src/handler.py alongside installed packages directly into the package root. Configure the handler as handler.lambda_handler, not backend.src.handler.lambda_handler.','u3','not-started'),
+     step('Create and inspect TeamFollowUp-Lambda.zip','Compress the package contents (not the parent folder). Confirm the ZIP root contains handler.py and the expected libraries. Exclude virtual environments, .git folders and local test outputs.','u3','not-started'),
+     step('Upload code and check deployment result','Create or update the TeamFollowUp-Api Lambda in us-east-1, upload the ZIP, wait for update completion and invoke a safe smoke test. Keep generated deployment packages out of Git commits.','u3','not-started')
+    ]),
+    task('6.3 Configure runtime, environment and logging','Use the deployment guide’s settings so the handler resolves all four tables and the API failure behavior remains observable.', 'u3','high','not-started',[
+     step('Choose Python 3.12, 256 MB and a 20-second timeout','Set runtime Python 3.12, memory 256 MB, timeout 20 seconds and handler handler.lambda_handler. Increase timeout only with measured justification and cost awareness.','u3','not-started'),
+     step('Set ITEMS_TABLE and ACTIVITY_TABLE','Set ITEMS_TABLE=TeamFollowUp-Items and ACTIVITY_TABLE=TeamFollowUp-Activity for the existing console deployment, using the correct names if a deliberately separate prefix is used.','u3','not-started'),
+     step('Set USERS_TABLE, ARCHIVE_TABLE and LOG_LEVEL','Set USERS_TABLE=TeamFollowUp-Users, ARCHIVE_TABLE=TeamFollowUp-Archive, and LOG_LEVEL=INFO unless a documented operational decision requires otherwise. Never place credentials in environment variables.','u3','not-started'),
+     step('Create the Lambda log group with 30-day retention','Verify /aws/lambda/TeamFollowUp-Api exists and retains logs for 30 days. Log request IDs, route/status and sanitized exceptions; never print authorization headers or tokens.','u6','not-started')
+    ]),
+    task('6.4 Enforce identity, validation and hierarchy in Lambda','The backend is the security boundary even when the frontend form prevents invalid values. Validate every create/update/delete/restore operation against the current table state.', 'u3','urgent','not-started',[
+     step('Resolve Cognito sub to an enabled Users profile','Read verified JWT claims from API Gateway, then map sub to one unique enabled profile. Return 401 for absent identity and 403 for a verified but unmapped/disabled profile.','u3','not-started'),
+     step('Validate names, descriptions, status, priority and due date','Require a non-empty bounded name, text description, supported status/priority, enabled assignee when supplied, and YYYY-MM-DD due-date format. Return safe 400 responses for bad input.','u3','not-started'),
+     step('Validate parent types and parent existence','Reject Tasks under Jobs and Follow-ups under unsupported parents. Prevent converting a Project with tasks to a Job, and block invalid changes that would break descendants.','u3','not-started'),
+     step('Derive trusted identity and index keys server-side','Set creator/editor and timestamps from the authenticated profile. Materialize workspaceKey, assignedTo, root/parent relationships and concurrency version in Lambda rather than trusting client-supplied values.','u3','not-started')
+    ]),
+    task('6.5 Implement atomic writes and consistent error behavior','Use the existing handler as the authority for API payload and transaction contracts; run backend tests before publishing changes.', 'u3','high','not-started',[
+     step('Commit item mutations with Activity in a transaction','Use TransactWriteItems for an item change and its audit event(s), with condition checks where needed. Prevent partial state where the data mutation succeeds but the corresponding event is missing.','u3','not-started'),
+     step('Preserve append-only events during item deletion','Cascade deletion archives the active subtree and commits a summary event with affected counts; it does not erase historical Activity records.','u3','not-started'),
+     step('Return bounded JSON errors and proper HTTP status codes','Handle authentication, authorization, invalid input, missing items, version conflicts and unexpected server failures. Do not expose stack traces, table secrets or token contents to the browser.','u3','not-started'),
+     step('Run the backend unit tests after each handler change','Use python -m unittest discover -s backend/tests -v. Check request routing, profile mapping, physical DynamoDB keys, hierarchy validations, archive/restore transaction boundaries and safe failure messages.','u3','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p7',name:'07 · API Gateway HTTP API, JWT Authorizer & CORS',
+   description:'Expose the Lambda handler using the existing API contract, enforce Cognito JWT validation on application routes, bind browser calls to the exact Amplify origin and enable access logs for debugging.',
+   ownerId:'u4',status:'not-started',due:24,
+   tasks:[
+    task('7.1 Create the HTTP API and Lambda integration','Use API Gateway HTTP API, not REST API by default, with one proxy route connected to the TeamFollowUp-Api function.', 'u4','high','not-started',[
+     step('Create an HTTP API named TeamFollowUp API','In API Gateway in us-east-1, create the HTTP API and add TeamFollowUp-Api as the Lambda integration. Verify the integration points to the intended function and Region.','u4','not-started'),
+     step('Configure ANY /{proxy+} for application paths','The Lambda router handles the application’s /bootstrap, /users, /items, per-item activity, /activity, /archive and restore endpoints behind the catch-all route.','u4','not-started'),
+     step('Use the $default stage with auto-deploy','Configure the documented $default stage and ensure route/authorizer changes become active. Record the HTTPS invoke URL without appending an individual route path.','u4','not-started'),
+     step('Confirm Lambda invocation permission','Verify API Gateway can invoke the selected Lambda and that the integration has the expected payload format. Test a safe route only after authorization is configured.','u3','not-started')
+    ]),
+    task('7.2 Configure the Cognito JWT authorizer','Validate token issuer and audience at API Gateway before application code handles the request. Every application-data route must require authorization.', 'u4','urgent','not-started',[
+     step('Create the CognitoJwt JWT authorizer','Set identity source to $request.header.Authorization and use the actual Cognito pool issuer URL in us-east-1. The issuer must exactly match the pool that issued the token.','u4','not-started'),
+     step('Use the public app-client ID as audience','Set audience to the actual Team_FollowUp app-client ID from Cognito. Do not copy a client secret into the audience configuration.','u4','not-started'),
+     step('Attach the authorizer to application routes','Require the authorizer on every application-data route, including reads, mutations, item history, global history and Archive. Do not expose a catch-all anonymous route.','u4','not-started'),
+     step('Verify anonymous and authenticated behavior','An absent/invalid/expired token should be rejected before Lambda; a valid token with no enabled profile mapping should be denied by Lambda. Record status codes without capturing raw tokens.','u3','not-started')
+    ]),
+    task('7.3 Configure exact-origin CORS','The origin must be the actual deployed Amplify branch HTTPS origin. CORS should be as narrow as the frontend requirements allow.', 'u4','high','not-started',[
+     step('Copy the exact Amplify branch HTTPS origin','Use scheme and hostname only, such as https://branch.generated-domain. Do not include a route path, add a wildcard or guess the generated domain.','u5','not-started'),
+     step('Allow only required methods and headers','Configure GET, POST, PATCH, DELETE and OPTIONS; allow authorization and content-type headers; set max age to 600 seconds and do not enable credentialed cookie CORS unnecessarily.','u4','not-started'),
+     step('Update CORS whenever the hosting origin changes','A branch/host replacement requires an explicit CORS update and fresh cross-origin verification. Do not work around a mismatch by allowing every origin.','u4','not-started'),
+     step('Test browser preflight and API response headers','From the real Amplify origin, check OPTIONS and authenticated GET/POST/PATCH/DELETE operations. Confirm the response supplies the exact approved Access-Control-Allow-Origin value.','u4','not-started')
+    ]),
+    task('7.4 Enable access logs and verify routing','Create a compact, safe access-log format and confirm the API invoke URL used in the frontend build is correct.', 'u4','high','not-started',[
+     step('Enable logging on the $default stage','Send access logs to /TeamFollowUp/apigateway/access and set the documented 30-day retention. Include request ID, route, status and latency where supported, never Authorization headers.','u6','not-started'),
+     step('Test the bootstrap and profile routes','GET /users and GET /items?scope=top-level should return the authenticated team directory and only root Projects/Jobs. Startup must not fetch every child or every Activity event.','u3','not-started'),
+     step('Test child and activity endpoints independently','Exercise /items/{id}/children, /items/{id}/activity?scope=all, /items/assigned-to-me and /activity?scope=application with authenticated requests and expected hierarchy results.','u3','not-started'),
+     step('Record the API invoke URL privately as runtime configuration','Use the origin-only execute-api URL for TEAM_FOLLOW_UP_API_BASE_URL. Do not bake the current URL into docs if it can change; verify the generated value on the live API.','u4','not-started')
+    ]),
+    task('7.5 Confirm endpoint contract and failure responses','Keep frontend URL/payload assumptions aligned with the handler and the API documentation.', 'u3','high','not-started',[
+     step('Validate query parameter names and page limits','Use the supported scope, rootParentId, parentId, type, status, priority, q, from/to, limit, offset, dateMode and direction parameters where the route supports them. Verify invalid pagination is rejected or bounded.','u3','not-started'),
+     step('Check POST/PATCH/DELETE data contracts','Create/update item requests carry business fields and allowed activity payloads; the server remains authoritative for actor, timestamps, indexes, hierarchy and event action.','u3','not-started'),
+     step('Verify errors for missing/archived items','Expected missing/archived items return safe not-found or validation responses; stale-version and parent/child conflicts return clear retry guidance rather than silent data corruption.','u3','not-started'),
+     step('Align API docs, UI error mapping and automated checks','Update endpoint documentation and regression tests if route semantics change. A successful Lambda invocation alone does not prove CORS, authorizer, frontend configuration and response shapes are correct.','u4','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p8',name:'08 · AWS Amplify Hosting, Build Configuration & Release',
+   description:'Connect the AWS deployment repository to Amplify Hosting, configure the main branch build, provide the public Cognito/API environment values, and publish the static frontend from dist/ using the repository’s build script.',
+   ownerId:'u5',status:'not-started',due:18,
+   tasks:[
+    task('8.1 Create Amplify Hosting for the deployment repository','Connect retzed/Team_Follow-Up_AWS-Deployment and select the intended branch. Amplify creates a generated HTTPS hosting origin that later becomes the required API CORS origin.', 'u5','urgent','not-started',[
+     step('Connect GitHub through the Amplify GitHub App','Grant Amplify access to the intended repository only where possible. Follow the AWS flow for repository authorization and keep any GitHub token private.','u5','not-started'),
+     step('Select retzed/Team_Follow-Up_AWS-Deployment and main','Verify the connected repository and branch before saving. The separate Team_Follow-Up repository is the browser-only demo and must not be used as the AWS deployment source.','u5','not-started'),
+     step('Create the hosting app and record the generated URL','Capture the exact branch HTTPS origin after Amplify provisions it. Do not assume the URL based on the app name or an earlier build.','u5','not-started'),
+     step('Allow the initial build to reveal missing configuration','An early build may fail because the API URL or runtime variables are not yet configured. The hosting origin is still needed to finish exact-origin CORS.','u5','not-started')
+    ]),
+    task('8.2 Configure the Amplify build pipeline','The repository’s amplify.yml uses Node 24 and runs the configured frontend build. The generated artifact served by Amplify is dist/.', 'u5','high','not-started',[
+     step('Check the repository amplify.yml build phases','Confirm preBuild selects Node 24 and prints node/npm versions; the build phase runs the repository’s build script and the artifact path is dist.','u5','not-started'),
+     step('Run npm run build locally before publishing','Use a current supported Node.js release and verify scripts/build.mjs creates dist/index.html. A local successful build checks assets/configuration but does not prove AWS resources are live.','u5','not-started'),
+     step('Inspect dist/index.html and public runtime config','Verify built output uses the expected Cognito pool ID, public client ID, API URL and custom attribute name. Do not include secrets, AWS keys or tokens in built assets.','u5','not-started'),
+     step('Review Amplify build logs and artifact path','A successful build must publish dist/ and resolve the homepage. Troubleshoot Node version, environment values, missing assets and build-script errors before debugging API requests.','u5','not-started')
+    ]),
+    task('8.3 Set the four public runtime variables','The console-first Amplify branch must receive the actual public configuration values expected by the app build.', 'u5','urgent','not-started',[
+     step('Set TEAM_FOLLOW_UP_COGNITO_USER_POOL_ID','Use the actual pool ID in us-east-1, not a placeholder or the value from an unrelated environment. Confirm it matches the JWT issuer used by API Gateway.','u5','not-started'),
+     step('Set TEAM_FOLLOW_UP_COGNITO_CLIENT_ID','Use the actual public Team_FollowUp app-client ID. It is a public client identifier, not a secret; never configure a client secret in frontend code.','u5','not-started'),
+     step('Set TEAM_FOLLOW_UP_API_BASE_URL','Use the HTTPS API Gateway invoke origin only, without a path suffix. Confirm it points to the API associated with the same Cognito pool and DynamoDB environment.','u4','not-started'),
+     step('Set TEAM_FOLLOW_UP_COGNITO_TEAM_USER_ATTRIBUTE','Set TEAM_FOLLOW_UP_COGNITO_TEAM_USER_ATTRIBUTE=custom:teamUserId unless the reviewed runtime contract changes. These variables are public configuration and must not contain credentials.','u4','not-started')
+    ]),
+    task('8.4 Publish and verify the hosted application','Finish deployment only after the API URL and exact CORS origin are known. Verify both the page build and an authenticated data read.', 'u5','high','not-started',[
+     step('Trigger a fresh build after saving environment variables','Save the branch variables and rerun/redeploy the latest main commit so the build embeds current values. Verify build status and artifact time before browser testing.','u5','not-started'),
+     step('Open the generated HTTPS branch URL','Verify the sign-in page loads without missing CSS/JS, check the browser console for startup errors, and confirm the page has the intended branding/language/theme defaults.','u5','not-started'),
+     step('Run one safe authenticated API request from the browser','Sign in with a provisioned user and verify top-level Projects/Jobs appear. Check for 401, 403, CORS, network or response-schema errors and capture only sanitized diagnostics.','u5','not-started'),
+     step('Record the deployed commit and URL in the handover','Note the branch commit SHA, build timestamp, generated URL and the verification result. Distinguish a successful static page from a fully working authenticated AWS deployment.','u1','not-started')
+    ]),
+    task('8.5 Maintain source-controlled frontend releases','Keep every deployed change reviewable and ensure the hosted build, runtime config and backend contract are updated together.', 'u5','medium','not-started',[
+     step('Review diffs before merging to main','Limit unrelated changes, preserve existing behavior and include the relevant regression tests. Do not publish local credentials or console exports with sensitive data.','u1','not-started'),
+     step('Coordinate frontend and backend contract changes','If API routes, runtime configuration, or event/item payloads change, update the handler, frontend adapter, tests and documentation in the same reviewed release plan.','u3','not-started'),
+     step('Verify cache behavior after a release','Confirm the hosted index references current assets and refresh the browser. If caching is implicated, inspect the actual Amplify/CDN response before repeating a deployment unnecessarily.','u5','not-started'),
+     step('Keep demo and production data paths separate','The browser demo uses local storage. The AWS version uses Cognito and authenticated DynamoDB APIs. Never treat demo-local items as live shared team records.','u5','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p9',name:'09 · Frontend Authentication, API Adapter & Localization',
+   description:'Wire the existing UI to Cognito and the authenticated API adapter, preserve the item hierarchy contract, and keep translation/theme behavior independent from stored user-entered content.',
+   ownerId:'u5',status:'not-started',due:27,
+   tasks:[
+    task('9.1 Initialize Cognito from public build configuration','Read the correct pool/client runtime values and use the application’s implemented SRP flow. Fail clearly when configuration is absent; do not silently fall back to demo-local auth in the AWS build.', 'u5','urgent','not-started',[
+     step('Verify the AWS runtime configuration before sign-in','Build configuration must contain the real pool ID, public client ID, API base URL and team-user attribute. Confirm that no local-auth or built-in database mode is enabled in the AWS artifact.','u5','not-started'),
+     step('Use the intended direct SRP authentication flow','The current implementation does not require managed-login domain/callback URLs. Verify token handling, sign-in failure messaging and safe sign-out with real administrator-created accounts.','u5','not-started'),
+     step('Attach authorization to every data request','Use the current access token in the Authorization header for API Gateway HTTP API calls. Never cache or log raw bearer tokens, and handle token expiry predictably.','u5','not-started'),
+     step('Avoid unsupported anonymous fallbacks','If Cognito or the API adapter is unavailable, show a clear configuration/authentication error. Never create a local mock identity or local work database in the AWS-only deployment.','u5','not-started')
+    ]),
+    task('9.2 Implement the public data-API adapter contract','All UI data reads/writes should pass through TeamFollowUpDataApi and use the current endpoint/payload format. The server, not the browser adapter, remains authoritative.', 'u3','urgent','not-started',[
+     step('Bootstrap users and top-level roots only','Call GET /users and GET /items?scope=top-level. Do not fetch all children or Activity during startup; this preserves progressive loading and avoids an unnecessarily broad initial request.','u3','not-started'),
+     step('Load child rows through the selected root query','Use the root-scoped item query for the selected Project/Job, merge returned rows into the client model, and retain parentId/rootParentId relationships. Do not eagerly hydrate every root’s descendants.','u3','not-started'),
+     step('Use assigned-to-me API filters for personal queues','Query the server with the current user context and supported filters, preserve correct sorting/pagination, and avoid showing stale entries when switching users or filters.','u3','not-started'),
+     step('Commit mutations through the API adapter','Route create/update/delete/restore through the current server contract. Merge server-normalized items/events into the client model only after the request confirms success.','u3','not-started')
+    ]),
+    task('9.3 Preserve hierarchy-aware UI and editable metadata','Maintain the project/job/task/follow-up rules in forms and views while keeping final validation in Lambda.', 'u5','high','not-started',[
+     step('Render Project and Job as top-level only','Do not provide parent selection for creating a Project/Job. A new child item must attach to a supported parent, and Job UI copy should state it contains Follow-ups only.','u5','not-started'),
+     step('Use dynamic parent wording and correct relationship hints','Inside a selected Project/Job, name the parent type explicitly. Tasks and Follow-ups under a Project and Follow-ups under a Job should show the appropriate explanatory subtext.','u5','not-started'),
+     step('Keep creator, assignee and updater metadata consistent','Show Created by and creation time with the right teammate icon, one Assigned to label, and Last updated date/time plus actor. Status changes update the same last-updated metadata.','u5','not-started'),
+     step('Keep edit/delete controls consistent','Maintain the top edit action and activity-history entry point. Keep Delete inside the edit confirmation flow, prevent invalid child conversions and avoid exposing server-only fields in editable forms.','u5','not-started')
+    ]),
+    task('9.4 Verify bilingual and responsive behavior','The UI supports English/Arabic, RTL, light/dark themes and compact mobile layouts. Translation applies to UI labels and user role/name display, not to user-entered item descriptions.', 'u5','high','not-started',[
+     step('Verify English and Arabic labels','Check Projects & Jobs, Job terminology, Tasks, Follow-ups, Activity History, statuses, priorities, archive, users and error strings in both languages. Use عمل مؤقت as the requested Arabic label for Job.','u5','not-started'),
+     step('Verify RTL without breaking icons or timestamps','Check Arabic activity cards, user icons, creator rows, date/time fields, creator names and buttons. Icons should remain inline and not overlap the timeline.','u5','not-started'),
+     step('Verify light/dark defaults and manual switches','Detect a supported system language/theme when reliable. Otherwise retain the specified safe default of dark mode plus English, and ensure manual switching remains available.','u5','not-started'),
+     step('Verify small-screen navigation and forms','Test the expandable Search/Assigned to me sidebar, compact item/type metadata, mobile date filters, edit popups and activity cards at narrow widths. Avoid fixed page-height caps that hide list content.','u5','not-started')
+    ]),
+    task('9.5 Validate response normalization and error surfaces','Keep physical DynamoDB fields out of UI records and show transparent retry/error states when an API request fails.', 'u3','high','not-started',[
+     step('Normalize item/event IDs and snapshots','Map itemId to the public id field and eventId to the public event ID. Normalize itemNameSnapshot/itemTypeSnapshot and actorUserId where needed without losing hierarchy context.','u3','not-started'),
+     step('Preserve server result events on mutation success','Use activityEvents returned by the create/update/archive/restore API response. Do not invent success events locally after a failed write or delete historical activity.','u3','not-started'),
+     step('Show useful authentication, validation and network failures','Distinguish 401 sign-in expiry, 403 profile mapping, 400 invalid data, 404 missing item, 409 conflict/throttling where applicable, and unknown 5xx/network failures. Make retry actions target the correct request.','u5','not-started'),
+     step('Run frontend API adapter regression tests','Use npm run test:data-api and the frontend tests to verify lean bootstrap, CRUD payloads, query construction, archive/restore and error handling.','u3','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p10',name:'10 · Progressive Loading, Activity History & Performance',
+   description:'Make startup lightweight and defer expensive child/history reads until the corresponding view needs them. Keep application-wide history and each item’s history request/readiness state independent.',
+   ownerId:'u3',status:'in-progress',due:25,
+   tasks:[
+    task('10.1 Keep the initial workspace bootstrap lean','At startup, load enabled team profiles and the top-level Project/Job list only. A larger hierarchy should not force all descendant rows and all audit history into the first response.', 'u3','high','completed',[
+     step('Render initial placeholders before awaiting data','Render the shell and loading placeholders, then begin the bootstrap promise. Users should see a visible state rather than an empty page while data is in flight.','u5','completed'),
+     step('Load GET /users and top-level Projects/Jobs','Retrieve team profiles and GET /items?scope=top-level only. Do not add /activity requests or rootParentId queries for every root to the bootstrap method.','u3','completed'),
+     step('Fetch children for the selected root only','After the parent list appears, request children/hierarchy for the currently selected Project/Job. Selecting another root triggers its own request and a corresponding loading state.','u3','completed'),
+     step('Use stable pagination and cancellation generations','Avoid duplicate requests on rerender, merge partial root pages without losing other roots, and ignore stale responses after the selection or hydration generation changes.','u3','completed')
+    ]),
+    task('10.2 Load item Activity only when an item-history popup opens','The activity popup is a read boundary: an item/root history request should occur on popup open, scope change or retry, not on ordinary workspace startup or routine saves.', 'u3','urgent','in-progress',[
+     step('Fetch history for the exact selected item/root','When the popup opens, call GET /items/{itemId}/activity?scope=all for Project/Job or Task and scope=item for a Follow-up. Preserve the requested scope in the modal state.','u3','completed'),
+     step('Track item-and-scope readiness independently','Maintain an activityLoaded key that includes item ID and scope. applicationHistoryReady must not mark an unrelated item popup as loaded or hide its pending spinner.','u3','in-progress'),
+     step('Load Activity for all descendants only in the all scope','For Project/Job all-activity history, include root and relevant descendants. For a Task, include the Task and its direct Follow-ups. For This item only, return only that item’s events.','u3','not-started'),
+     step('Keep application-wide reads out of popup prerequisites','The selected item history popup must work before application-wide history has ever been opened. Opening global history must not be required to initialize a local item popup.','u3','completed')
+    ]),
+    task('10.3 Load application-wide history only on demand','The application-wide history modal requests GET /activity?scope=application when opened. A global Activity table scan is more expensive than a single item partition query, so it must not run in the background during ordinary use.', 'u3','high','in-progress',[
+     step('Request global Activity only after the modal opens','Render the global-history popup and its loading indicator first, then issue the global history request. Do not fetch all events at sign-in or after every item mutation.','u3','completed'),
+     step('Display search/filter controls during loading','Keep date/time, user, project/job, parent/child item and action search controls responsive. Show the event count as loading until the global query resolves.','u5','not-started'),
+     step('Preserve current sort and de-duplication rules','Normalize event IDs, de-duplicate by public event ID, and present events newest first with a stable secondary ordering for equal timestamps.','u3','not-started'),
+     step('Handle global-query errors explicitly','Show a sanitized error with Retry if the Scan fails. Do not treat stale locally cached item history as proof that the full global query completed.','u3','not-started')
+    ]),
+    task('10.4 Keep history scope, failure and retry state coherent','Changing the All activity / This item only selector starts a new scope-specific request and should preserve the popup’s search/scroll interaction where practical.', 'u3','high','not-started',[
+     step('Change readiness when scope changes','When the user changes scope, clear stale scope errors, render the correct pending state and request the new endpoint result. Do not reuse the previous scope’s loaded flag for the new scope.','u3','not-started'),
+     step('Bind errors to the active item and scope','Only display an error on the popup if it still refers to the same item and selected scope. Ignore stale responses for closed popups or a later selection.','u3','not-started'),
+     step('Retry the request that actually failed','The item popup retry targets its item/scope query. Global history retry targets the global route. Child-list retry triggers the selected root query, not an unrelated request.','u3','not-started'),
+     step('Preserve loading indicators and accessible status','Use role=status and aria-live, meaningful translated copy and visible spinners for pending requests. Use an error region and Retry button after failure instead of indefinite spinners.','u5','not-started')
+    ]),
+    task('10.5 Exercise loading behavior with the demo’s large local dataset','Use the browser-only demo data to test expensive lists and observable loaders without writing synthetic test records into the live AWS tables.', 'u5','medium','not-started',[
+     step('Load the fresh built-in demo fixture','The separate demo app seeds a detailed AWS runbook workspace in browser-local storage. Its large work-item and Activity counts are synthetic and do not synchronize to AWS.','u5','not-started'),
+     step('Test root children and nested follow-up rendering','Open multiple Projects/Jobs, Tasks and Follow-ups. Confirm hierarchy counts, filters, newest-first activity, search and mobile rendering still work as the dataset grows.','u5','not-started'),
+     step('Test loading before and after global history','First open each item’s history popup without visiting global history. Then open global history and repeat; loading readiness must remain correct in both sequences.','u3','not-started'),
+     step('Keep heavy sample data out of the AWS deployment','Do not run bulk synthetic seed scripts or put demo fixtures in the AWS account. Validate live API behavior using the real team’s intentionally small dataset and safe read-only checks.','u1','completed')
+    ])
+   ]
+  },
+  {
+   id:'p11',name:'11 · Archive, Delete, Restore & Audit Integrity',
+   description:'Treat deleting a work item as a validated archive operation, retain immutable Activity records and enforce hierarchy when restoring selected records. Verify active/archive state and history after every operation.',
+   ownerId:'u3',status:'not-started',due:26,
+   tasks:[
+    task('11.1 Archive a single item or hierarchy safely','The API should snapshot item content and relationships, move the active subtree out of Items and attach one committed summary event for the user-initiated delete.', 'u3','urgent','not-started',[
+     step('Compute the affected subtree and root safely','Identify the target and descendants from current parent relationships. Protect against hierarchy loops, stale relationships and attempts to delete a missing or already archived item.','u3','not-started'),
+     step('Write each archive snapshot with metadata','Preserve original ID, type, names, description, status, priority, parent/root IDs, creator/updater timestamps, due date/version, archivedAt and archivedByUserId.','u3','not-started'),
+     step('Commit archive movement and delete event transactionally','Use supported atomic writes and condition checks. The delete summary includes affectedCount and affectedDescendantCount; avoid duplicate summary events for all descendants.','u3','not-started'),
+     step('Keep old Activity rows intact','Do not delete event records from TeamFollowUp-Activity when the item is archived. Root history must remain able to retrieve old child events from archived item IDs.','u3','not-started')
+    ]),
+    task('11.2 Browse and search the Archive','Use the archive indexes and snapshots to display archived roots and children even when active parent rows no longer exist.', 'u6','high','not-started',[
+     step('Query GSI_ArchiveIndex for archived records','Use archivePK/archiveSort for the Archive listing. Apply supported type, search and root filters without reading or mutating the active Items table unnecessarily.','u6','not-started'),
+     step('Group snapshots using archiveRootId and parent IDs','Keep each record connected to its original hierarchy. Show the archived Project/Job as the group root and calculate nested indentation using only items belonging to that archive group.','u5','not-started'),
+     step('Display archive time and actor safely','Show archivedAt and archivedByUserId mapped to the teammate name where available. Handle records where the user/root is no longer available using snapshot text rather than crashing.','u5','not-started'),
+     step('Support selection and bulk restore preparation','Allow the operator to select one or several archived rows and keep the selected IDs stable across rerenders, search/filter changes and mobile horizontal scrolling.','u5','not-started')
+    ]),
+    task('11.3 Restore only valid parent/child combinations','Restore is hierarchy-aware: a child whose parent is archived may need that parent selected/restored first. Follow-ups under Tasks require their Task to exist or be restored with them.', 'u3','high','not-started',[
+     step('Validate parent availability before restore','A Task cannot be restored under a missing Project; a Follow-up must have an eligible Project, Job or Task parent. Return a direct message that identifies the required parent action.','u3','not-started'),
+     step('Write restored rows with original identity and relationships','Preserve item IDs and hierarchy metadata while removing archive-only fields. Validate version/parent state and avoid restoring duplicate active item IDs.','u3','not-started'),
+     step('Return committed restore activity events','Merge Activity events returned by the restore response immediately rather than waiting for an eventually consistent index. Confirm restored events appear in root and global history.','u3','not-started'),
+     step('Refresh the correct roots and archive result','After restore, query authoritative state, update hierarchy indexes and remove restored entries from the visible Archive list. Reconcile safely if a multi-item operation partially fails.','u3','not-started')
+    ]),
+    task('11.4 Validate all history-producing actions','Use the Activity record contract for create, edit, status change, delete, archive and restore. History is read on demand but must exist reliably for all completed operations.', 'u3','high','not-started',[
+     step('Audit each create and update form path','Create an item, change description/assignee/due date/priority/type and verify the correct event fields, actor and timestamp. Unchanged forms should not create fake updates.','u3','not-started'),
+     step('Audit status changes and last-updated metadata','Status transition gets a dedicated event. The item's Last updated label still uses the same latest updatedAt/updatedBy metadata and should not create an unrelated duplicate label.','u3','not-started'),
+     step('Audit delete/restore and archived-descendant history','Delete a subtree and ensure an event appears even though the item is absent from active rows. Reopen root history and verify events for archived descendants are included.','u3','not-started'),
+     step('Audit Activity de-duplication and timestamps','Ensure event IDs are stable, timestamps are UTC ISO strings, activityKey uses timestamp#eventId, and repeated response merging does not duplicate timeline cards.','u3','not-started')
+    ]),
+    task('11.5 Test conflict, retry and interrupted-operation recovery','Archive/restore can span several related records. A failure must report what happened and provide a safe path to reconcile authoritative state.', 'u3','medium','not-started',[
+     step('Simulate a stale version or missing parent','Verify the API rejects incompatible changes with a safe conflict/validation status and the UI allows the user to refresh rather than overwriting concurrent work.','u3','not-started'),
+     step('Inspect interrupted archive/restore outcomes','If an operation reports possible partial completion, re-query active rows and Archive and compare IDs before retrying. Do not blindly repeat a non-idempotent mutation.','u3','not-started'),
+     step('Review transaction size limits and chunking','Confirm multi-item operations respect DynamoDB transaction limits and rollback/compensation behavior documented by the handler. Keep the error response clear if a chunk cannot be restored.','u3','not-started'),
+     step('Update operational guidance after fixes','Record reproduction conditions, affected commit, table state, repair method and test evidence without copying private identifiers or credentials into issue text.','u1','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p12',name:'12 · CloudWatch Logs, Dashboard, Alarms & Cost Operations',
+   description:'Create operational visibility for Lambda/API activity, retain useful diagnostics for a defined period, and make budget/alarms understandable as notifications rather than prevention mechanisms.',
+   ownerId:'u6',status:'not-started',due:29,
+   tasks:[
+    task('12.1 Configure Lambda and API access log groups','Create log groups with defined retention and safe structured content before broad acceptance testing.', 'u6','high','not-started',[
+     step('Set Lambda log-group retention to 30 days','Use /aws/lambda/TeamFollowUp-Api and change retention to 30 days, including when Lambda creates the log group automatically. Verify the selected Region.','u6','not-started'),
+     step('Enable API Gateway access logging','Use /TeamFollowUp/apigateway/access on the $default stage, with 30-day retention and a compact JSON format including request ID, route, status and latency where supported.','u6','not-started'),
+     step('Remove tokens and sensitive request content from logs','Never log Authorization headers, access/refresh tokens, passwords, private email addresses or raw sensitive payloads. Prefer sanitized identifiers and error category/request ID.','u3','not-started'),
+     step('Verify logs arrive during a controlled smoke test','Make one authenticated read and one safe invalid-token request. Confirm the appropriate API/Lambda logs appear and that the diagnostic output contains no credential material.','u6','not-started')
+    ]),
+    task('12.2 Create TeamFollowUpDashboard','Provide a small operational view for API requests/errors and Lambda invocation/error/throttle/duration metrics in the correct Region.', 'u6','high','not-started',[
+     step('Create the CloudWatch dashboard','Use the documented dashboard name TeamFollowUpDashboard. Include Lambda invocations, errors, throttles and duration plus API Gateway count and 5xx response metrics.','u6','not-started'),
+     step('Keep metric dimensions aligned to actual resource names','Select the deployed API and TeamFollowUp-Api function dimensions, not a stale ID from a different stack or Region. Confirm charts show recent data after a test request.','u6','not-started'),
+     step('Make dashboards useful without excessive retention','Use existing service metrics and limited log retention to control overhead. Do not enable optional high-cardinality or high-cost monitoring features without a documented need.','u6','not-started'),
+     step('Record the dashboard location in the runbook','Include the console path, Region, deployed API/function names, useful metrics and responsible maintainer, but never store log exports with secrets in source control.','u1','not-started')
+    ]),
+    task('12.3 Create the three documented CloudWatch alarms','Target alarms report Lambda errors, Lambda throttles and API Gateway 5xx errors. Alarm existence is not the same as email notification delivery.', 'u6','high','not-started',[
+     step('Create a Lambda Errors alarm','Select the correct function, choose a threshold/window suitable for the learning workload and inspect alarm transitions after controlled tests.','u6','not-started'),
+     step('Create a Lambda Throttles alarm','Alert on throttling so insufficient concurrency or a burst is visible. Correlate with duration and DynamoDB throttles before changing memory/capacity.','u6','not-started'),
+     step('Create an API Gateway 5xx alarm','Target 5xx responses for the deployed HTTP API/stage. Distinguish API integration failures from expected 4xx authentication/validation responses.','u6','not-started'),
+     step('Verify actions and notification assumptions','The baseline does not configure SNS/email alarm actions by default. If notifications are required, add an approved action deliberately and test delivery rather than assuming alarm creation sends an email.','u6','not-started')
+    ]),
+    task('12.4 Operate the monthly budget and review actual spend','Use AWS Budgets as a separate account billing monitor; do not represent it as a resource shutoff policy.', 'u6','high','in-progress',[
+     step('Verify TeamFollowUp-Monthly-Cost is recurring USD $1','Confirm amount, monthly period, unblended-cost metric, actual thresholds 50/80/100 percent and forecast threshold 100 percent. Keep alert recipients private.','u6','completed'),
+     step('Check whether actual/forecast notifications have fired','Review the budget state and billing view after resource deployment. Understand that charge reports and forecast evaluations can lag usage.','u6','not-started'),
+     step('Review optional feature and capacity cost before enabling','PITR, Streams, autoscaling, higher provisioned capacity, extended logging and additional environments can change spend. Estimate/verify cost first.','u6','not-started'),
+     step('Write a monthly cost review checklist','Compare actual spend with the budget, identify unexpected services, confirm retained resources and remove only intentionally disposable environments with reviewed cleanup steps.','u1','not-started')
+    ]),
+    task('12.5 Define routine troubleshooting and response','Use request IDs and service boundaries to find the first failed component instead of repeatedly changing unrelated configuration.', 'u6','medium','not-started',[
+     step('Start with browser console and network status','Check runtime variables, Cognito errors, request URLs, HTTP status, response body and CORS headers. Do not export network traces containing access tokens.','u5','not-started'),
+     step('Correlate API access logs and Lambda request IDs','Find the API route/status and matching Lambda invocation. Use the sanitized failure context to distinguish authorizer, handler, table permissions and application validation problems.','u6','not-started'),
+     step('Check DynamoDB throttles and index status','Verify tables/indexes are ACTIVE, permissions are scoped correctly, and the existing 1 RCU/1 WCU baseline has not throttled. Do not add indexes as an unreviewed debugging shortcut.','u6','not-started'),
+     step('Capture root cause and verify the recovery','Record the symptom, root cause, fix, validation result and affected commit; re-run the relevant acceptance test and confirm no data was duplicated or lost.','u1','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p13',name:'13 · End-to-End Acceptance, Security & Regression Testing',
+   description:'Execute the acceptance plan across the real hosted frontend and authenticated API, covering authorization, hierarchy, CRUD, loading, history, archive, localization, responsive layouts and automated contracts.',
+   ownerId:'u1',status:'not-started',due:30,
+   tasks:[
+    task('13.1 Run authentication and identity-security checks','Use at least two provisioned team members and test both API Gateway JWT enforcement and Lambda user-profile mapping.', 'u4','urgent','not-started',[
+     step('Verify valid access token and mapped user','Sign in as a provisioned Cognito member and confirm API reads succeed with the correct stable team user ID and profile.','u4','not-started'),
+     step('Verify no-token, invalid-token and expired-token behavior','Protected routes should deny missing/invalid/expired tokens. Confirm the frontend shows a clear sign-in or error message without sending an untrusted mutation.','u4','not-started'),
+     step('Verify unmapped and disabled Users rows are denied','Simulate missing mapping in an isolated test or unit test. Lambda should not default to a teammate or trust a userId supplied by the client.','u3','not-started'),
+     step('Verify no secret leakage in browser and logs','Inspect built HTML/JS, browser console and sanitized logs for client secrets, AWS keys, passwords, tokens and private notification emails.','u4','not-started')
+    ]),
+    task('13.2 Exercise CRUD and hierarchy constraints','Test supported item combinations and invalid combinations using real API calls as well as UI forms.', 'u1','urgent','not-started',[
+     step('Create a Project with a Task and two Follow-ups','Verify the Task parent/root IDs, direct Follow-up parent IDs, field validation, creator and event snapshots. Task Follow-ups must be nested beneath their Task.','u1','not-started'),
+     step('Create a Job with direct Follow-ups only','Verify UI offers only Follow-up children for a Job. API must reject creating a Task under the Job even if a caller bypasses the UI.','u3','not-started'),
+     step('Test edit, assignment, due date, priority and status','Change each supported field as an authenticated teammate. Confirm updatedAt/updatedBy changes and audit events are emitted transactionally.','u1','not-started'),
+     step('Test invalid parents, duplicate IDs and stale versions','Attempt unsupported nesting, blank/oversized names, invalid status/priority/date, unknown assignees and stale concurrent edits. Each must fail safely with no partial write.','u3','not-started')
+    ]),
+    task('13.3 Validate lazy loading and all history popup modes','Test the actual intended network boundary for boot, child lists, item history and application-wide history.', 'u3','urgent','not-started',[
+     step('Confirm startup does not retrieve descendants or Activity','Inspect network activity after sign-in. The initial data calls should be profiles and top-level Projects/Jobs only, followed by the selected root’s children as needed.','u3','not-started'),
+     step('Open Project/Job history before global history','Verify the item-specific popup opens and fetches correct all-activity events on its own. It must not depend on application-wide history having been opened earlier.','u3','not-started'),
+     step('Open Task and Follow-up history independently','A Task all-activity view includes its own events and direct Follow-ups. A Follow-up requests only its own event partition and has no scope selector for children.','u3','not-started'),
+     step('Open global history and test search/retry/loading','Check global history loads only when opened, shows the pending indicator, supports user/text/date searches and displays a clear retry state on failure.','u5','not-started')
+    ]),
+    task('13.4 Test archive, restore and cross-user visibility','Ensure all teammates see shared AWS records and that archive operations preserve history and relationships.', 'u1','high','not-started',[
+     step('Verify an assigned record appears for the assigned teammate','Create as one user, assign to a second user, and verify Assigned to me is correct for both accounts. Role labels should not change data privileges.','u1','not-started'),
+     step('Delete a hierarchy and inspect Archive','Check the root/child snapshots, archivedAt/actor fields, archive grouping and the summary Activity event. Existing descendant history must still be present.','u3','not-started'),
+     step('Restore a parent and selected descendants','Test valid parent-plus-child restore and an invalid child-only restore. Confirm hierarchy links, active counts, and restored Activity events are correct.','u3','not-started'),
+     step('Repeat history checks after restore','Reopen item history and global history to confirm create/update/delete/restore events show correct names, actors, timestamps, parent/child labels and ordering.','u3','not-started')
+    ]),
+    task('13.5 Run automated, build and manual regression suites','Combine pure local checks with live environment smoke tests; report clearly which layer was verified.', 'u3','high','not-started',[
+     step('Run npm test in the AWS repository','Execute the complete frontend syntax, data API, progressive loading, activity coverage, history structure, output escaping and UI regression suite from the AWS deployment repository.','u3','not-started'),
+     step('Run backend and infrastructure tests','Run python -m unittest discover -s backend/tests -v and python scripts/test-infrastructure.py after ensuring dependencies are installed. Inspect failures instead of accepting a successful package build as a full integration test.','u3','not-started'),
+     step('Run npm run build and inspect dist output','Confirm the current public Cognito/API configuration is present and all build assertions pass. The build must not accidentally publish the browser-only demo’s local storage adapter.','u5','not-started'),
+     step('Record what was and was not tested live','Separate tests executed locally, in CI, in the demo, against mocked APIs and against actual AWS. Do not claim live Cognito/DynamoDB/browser verification if it was not performed.','u1','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p14',name:'14 · Operations, Recovery, Documentation & Team Handover',
+   description:'Maintain a reproducible step-by-step runbook, document known limitations, preserve data before destructive changes, and deliver a clear handover to the six-person team.',
+   ownerId:'u1',status:'not-started',due:34,
+   tasks:[
+    task('14.1 Keep the console deployment runbook current','Use docs/DEPLOYMENT.md as the primary console-first guide and maintain the architecture/schema/implementation records whenever resources change.', 'u1','high','not-started',[
+     step('Record resource creation order and dependencies','Document account/Region, Cognito, DynamoDB tables/GSIs, budget, team accounts/profile seed, Amplify origin, Lambda role/package, API authorizer/CORS, build variables, CloudWatch and acceptance sequence.','u1','not-started'),
+     step('Separate target architecture from current account state','Use docs/ARCHITECTURE.md for target behavior and docs/IMPLEMENTATION.md for dated operator-reported resource state. Mark pending, verified and historical items explicitly.','u1','not-started'),
+     step('Synchronize table schema, policy and runtime variables','If a table/index/route/variable changes, update backend/table-schema.json, IAM policy, Lambda code, Amplify instructions and tests together.','u3','not-started'),
+     step('Maintain safe evidence and change history','Commit only source/docs without tokens, private addresses, credentials or production data exports. Use commit SHAs, sanitized errors and service names to make changes auditable.','u1','not-started')
+    ]),
+    task('14.2 Define backups, deletion risks and recovery','The low-cost baseline disables DynamoDB point-in-time recovery and Streams. Understand the recovery implications before deploying data that matters.', 'u6','high','not-started',[
+     step('Export or back up important data before migrations','Do not assume the application archive is a full backup. Before schema changes or deletes, use an approved export/backup process and verify a recovery path.','u6','not-started'),
+     step('Review deletion protection and PITR requirements','The learning baseline records both as off. Decide whether important long-lived data needs stronger retention, protection or recovery capability before moving beyond the learning environment.','u6','not-started'),
+     step('Understand CloudFormation Retain behavior','The optional template sets DeletionPolicy and UpdateReplacePolicy Retain on DynamoDB data tables. Stack deletion can leave tables behind and prevent same-named recreation until deliberately handled.','u2','not-started'),
+     step('Practice recovery in an isolated environment','Validate backup/export and restore procedure with noncritical data before a real migration. Confirm indexes, profile mappings and Activity relationships after recovery.','u6','not-started')
+    ]),
+    task('14.3 Operate releases and diagnose common failures','Keep a compact symptom-to-component guide for sign-in errors, CORS, Lambda/API integration, DynamoDB throttles, stale builds, history queries and archive restore.', 'u5','medium','not-started',[
+     step('Diagnose issuer/audience and profile-mapping failures','Check actual pool/client values, token issuer/audience, enabled Cognito account, custom:teamUserId mapping and Users.cognitoSub without exposing tokens or subject values.','u4','not-started'),
+     step('Diagnose CORS and API URL errors','Verify the live Amplify origin is allowed by HTTP API CORS, the API base URL has no route suffix, and the JWT authorizer is attached. Do not solve CORS with an unrestricted wildcard.','u4','not-started'),
+     step('Diagnose build/runtime mismatch','Compare the published build’s environment with the intended pool/client/API values, confirm the latest main commit and check for cached index/assets before changing AWS resources.','u5','not-started'),
+     step('Diagnose throttling and database access failures','Use request IDs and CloudWatch metrics; verify execution-role table/index permissions, ACTIVE state, GSI key contract and the low provisioned throughput before increasing capacity.','u6','not-started')
+    ]),
+    task('14.4 Prepare team onboarding and presentation evidence','The handover should explain the architecture, identity/security, data model, API, lazy loading, observability, costs, limitations and the console-first deployment order.', 'u1','medium','not-started',[
+     step('Create a clear six-person ownership map','Marwa coordinates scope/handover. Zyad covers AWS foundation/security. Nadine covers backend/API/audit. Omar covers Cognito/identity. Haneen covers hosting/UI. Dina covers DynamoDB/operations; titles remain descriptive only.','u1','not-started'),
+     step('Capture architecture and request-flow diagrams','Show browser → Amplify, Cognito sign-in, HTTPS/API Gateway JWT validation, Lambda/profile mapping, the four DynamoDB tables, CloudWatch and AWS Budgets. Include the trust boundary and data read patterns.','u1','not-started'),
+     step('Demonstrate a full work-item lifecycle','Show sign-in, top-level selection, child lazy load, assignment, status change, item history on first open, application-wide history, archive/delete and restore. Explain which calls happen only on demand.','u5','not-started'),
+     step('Explain limitations and next decisions honestly','Review global Activity Scan, Users Scan, low 1 RCU/WCU capacity, PITR/Streams off, non-capping budget alerts, missing notification actions and any resources still pending in the live account.','u1','not-started')
+    ]),
+    task('14.5 Review production-readiness gaps before broad use','Treat the small console-first setup as a learning baseline. Decide explicitly whether identity controls, backups, capacity, alarms, governance and recovery fit actual organizational risk.', 'u1','high','not-started',[
+     step('Review data sensitivity and retention requirements','Confirm whether the team will enter confidential business data, define who can access the account, document retention/deletion policies and avoid test data in the shared AWS workspace.','u1','not-started'),
+     step('Review rate limiting, scaling and query growth','Measure root queries, activity scan latency and throttling before increasing data volume. Consider purpose-built indexes or pagination only after updating schema, handler, IAM, cost analysis and tests together.','u3','not-started'),
+     step('Review alert routing and incident ownership','Assign owners for Lambda/API errors, budget notifications, failed builds, access changes and data recovery. Verify alert destinations rather than assuming dashboard/alarms send email by default.','u6','not-started'),
+     step('Sign off only after evidence and open gaps are reviewed','Summarize passing acceptance checks, outstanding work, live resource status, cost assumptions, deployment commit and recovery limitations; obtain a deliberate decision before inviting all users to rely on the system.','u1','not-started')
+    ])
+   ]
+  }
  ];
- const parents=[];const children=[];
- for(let pi=0;pi<projectSpecs.length;pi++){
-  const spec=projectSpecs[pi];const pCreated=ago(27-pi,pi*7);const pUpdated=ago(Math.max(0,Math.floor(pi/3)),18+pi*5);
-  parents.push({id:spec.id,type:'project',name:spec.name,description:spec.description,status:spec.status,ownerId:spec.ownerId,dueDate:dateKey(ago(-spec.due)),createdAt:pCreated,createdBy:memberIdAt(pi),updatedAt:pUpdated,updatedBy:spec.ownerId});
+ const parents=[];
+ const children=[];
+ const all=[];
+ const nowDate=new Date();
+ const interpolate=(start,end,fraction)=>new Date(start.getTime()+(end.getTime()-start.getTime())*fraction).toISOString();
+ const statuses=['not-started','in-progress','on-hold','completed'];
+ const priorities=['low','medium','high','urgent'];
+ let taskNumber=0;
+ for(let pi=0;pi<chapters.length;pi++){
+  const spec=chapters[pi];
+  const rootCreated=new Date(ago(55-pi*2,pi*11));
+  const rootUpdated=new Date(ago(Math.max(0,Math.floor((chapters.length-pi)/5)),20+pi*13));
+  const root={
+   id:spec.id,type:'project',name:spec.name,description:spec.description,status:spec.status,
+   ownerId:spec.ownerId,priority:null,dueDate:dateKey(ago(-spec.due)),
+   createdAt:rootCreated.toISOString(),createdBy:memberIdAt(pi),
+   updatedAt:rootUpdated.toISOString(),updatedBy:spec.ownerId
+  };
+  parents.push(root);all.push(root);
   for(let ti=0;ti<spec.tasks.length;ti++){
-   const ts=spec.tasks[ti];const taskCreated=ago(Math.max(2,17-pi+ti),ti*13);const taskUpdated=ago(Math.max(0,Math.floor(pi/3)),35+pi*8+ti*9);
-   children.push({id:ts.id,parentId:spec.id,rootParentId:spec.id,type:'task',name:ts.name,description:ts.description,status:ts.status||'not-started',priority:ts.priority,ownerId:ts.ownerId,dueDate:dateKey(ago(-(spec.due-ti-1))),createdAt:taskCreated,createdBy:memberIdAt(pi*2+ti),updatedAt:taskUpdated,updatedBy:ts.ownerId});
+   const ts=spec.tasks[ti];taskNumber++;
+   const taskCreated=new Date(interpolate(rootCreated,nowDate,0.18+(ti+1)/(spec.tasks.length+2)*0.48));
+   const taskUpdated=new Date(interpolate(taskCreated,nowDate,0.76+(ti%3)*0.035));
+   const taskItem={
+    id:'t'+taskNumber,parentId:root.id,rootParentId:root.id,type:'task',
+    name:ts.name,description:ts.description,status:ts.status,priority:ts.priority,ownerId:ts.ownerId,
+    dueDate:dateKey(ago(-(Math.max(1,spec.due-ti-1)))),
+    createdAt:taskCreated.toISOString(),createdBy:memberIdAt(pi*3+ti+1),
+    updatedAt:taskUpdated.toISOString(),updatedBy:ts.ownerId
+   };
+   children.push(taskItem);all.push(taskItem);
    for(let si=0;si<ts.steps.length;si++){
-    const st=ts.steps[si];const fid=`f${ts.id.slice(1)}_${si+1}`;const fCreated=ago(Math.max(0,10-pi+ti+si),si*17);const fUpdated=ago(Math.max(0,Math.floor(pi/4)),45+pi*9+ti*12+si*8);
-    children.push({id:fid,parentId:ts.id,rootParentId:spec.id,type:'followup',name:st[0],description:st[1],status:st[3]||'not-started',priority:si===0?'high':(si===1?'medium':'low'),ownerId:st[2],dueDate:dateKey(ago(-(spec.due-ti-si-1))),createdAt:fCreated,createdBy:memberIdAt(pi*7+ti*3+si),updatedAt:fUpdated,updatedBy:st[2]});
+    const st=ts.steps[si];
+    const followCreated=new Date(interpolate(taskCreated,nowDate,0.24+(si+1)/(ts.steps.length+2)*0.46));
+    const followUpdated=new Date(interpolate(followCreated,nowDate,0.72+(si%3)*0.04));
+    const follow={
+     id:'f'+taskNumber+'_'+(si+1),parentId:taskItem.id,rootParentId:root.id,type:'followup',
+     name:st.name,description:st.description,status:st.status||statuses[(taskNumber+si)%statuses.length],
+     priority:priorities[(taskNumber+si)%priorities.length],ownerId:st.ownerId||memberIdAt(taskNumber+si),
+     dueDate:dateKey(ago(-(Math.max(1,spec.due+si-ti)))),
+     createdAt:followCreated.toISOString(),createdBy:memberIdAt(pi*7+ti*3+si+2),
+     updatedAt:followUpdated.toISOString(),updatedBy:st.ownerId||memberIdAt(taskNumber+si)
+    };
+    children.push(follow);all.push(follow);
    }
   }
+  const direct=[
+   step('Checkpoint · capture the result for this AWS chapter','Record the exact console setting, resource name/ID, source commit or test result that proves this chapter was completed. Keep the record factual and never include credentials, raw tokens or private notification details.',spec.ownerId,spec.status==='completed'?'completed':'not-started'),
+   step('Checkpoint · verify dependencies before proceeding','Confirm the preceding resource and configuration are working, update the remaining-work note, and do not mark this chapter complete merely because a build or console save succeeded.',spec.ownerId,spec.status==='completed'?'completed':'not-started')
+  ];
+  for(let di=0;di<direct.length;di++){
+   const st=direct[di];
+   const directCreated=new Date(interpolate(rootCreated,nowDate,0.68+di*0.08));
+   const directUpdated=new Date(interpolate(directCreated,nowDate,0.76));
+   const directItem={
+    id:'fp'+(pi+1)+'_'+(di+1),parentId:root.id,rootParentId:root.id,type:'followup',
+    name:st.name,description:st.description,status:st.status,priority:di===0?'medium':'high',ownerId:st.ownerId,
+    dueDate:dateKey(ago(-(spec.due+2+di))),
+    createdAt:directCreated.toISOString(),createdBy:memberIdAt(pi+di+2),
+    updatedAt:directUpdated.toISOString(),updatedBy:st.ownerId
+   };
+   children.push(directItem);all.push(directItem);
+  }
  }
- const job={id:'p11',type:'job',name:'11 · Temporary AWS Environment & Cost Review',description:'A temporary operational work item for cost visibility, safe testing and removal of disposable resources. Jobs contain follow-ups only.',status:'in-progress',ownerId:'u4',dueDate:dateKey(ago(-7)),createdAt:ago(20),createdBy:memberIdAt(10),updatedAt:ago(0,55),updatedBy:'u4'};
- parents.push(job);
- const directJobFollowups=[
-  {id:'fj1',name:'Check the estimated cost of the current AWS resource set',description:'Review DynamoDB on-demand requests, Lambda invocations, API Gateway requests, CloudFront data transfer and Cognito MAUs.',ownerId:'u6',status:'in-progress',priority:'medium',created:9,updated:55},
-  {id:'fj2',name:'Confirm temporary test resources are tagged and documented',description:'Apply a common project tag and record resource names, regions, and ownership before sharing access with the team.',ownerId:'u2',status:'not-started',priority:'high',created:5,updated:145},
-  {id:'fj3',name:'Decide which resources to retain after the lab',description:'Retain only what the team needs; remove unused distributions, APIs, tables, functions, pools and buckets after exporting required evidence.',ownerId:'u1',status:'not-started',priority:'high',created:3,updated:180},
-  {id:'fj4',name:'Verify no secrets or real customer data are stored in application records',description:'Use synthetic project records during testing and verify passwords and access tokens are never written to browser storage, logs or screenshots.',ownerId:'u4',status:'not-started',priority:'urgent',created:2,updated:90}
+ const jobCreated=new Date(ago(25,24));
+ const jobUpdated=new Date(ago(0,38));
+ const job={
+  id:'p15',type:'job',name:'Optional · Full-Stack SAM / CloudFormation Automation (Isolated Environment)',
+  description:'This is the optional automation branch, not the primary console-first deployment. The template creates an entirely new stack from scratch; it does not adopt the existing console-created Cognito pool, DynamoDB tables or budget. Use a clean account or a distinct prefix such as TeamFollowUpAuto, review every changeset, and understand that DynamoDB Retain policies can leave tables behind after stack deletion.',
+  status:'not-started',ownerId:'u2',dueDate:dateKey(ago(-42)),
+  createdAt:jobCreated.toISOString(),createdBy:'u2',updatedAt:jobUpdated.toISOString(),updatedBy:'u2'
+ };
+ parents.push(job);all.push(job);
+ const jobSteps=[
+  step('Optional A1 · verify that automation is actually needed','The normal workflow is AWS Management Console. Use SAM/CloudFormation only when an isolated from-scratch stack is desired; do not replace the main manual path or imply a template deployment has happened.', 'u2','not-started'),
+  step('Optional A2 · choose a non-colliding prefix','The existing manual environment uses TeamFollowUp table names. Use TeamFollowUpAuto or another unique ResourceNamePrefix in the same account/Region; default TeamFollowUp is only appropriate when no same-named resources exist.', 'u2','not-started'),
+  step('Optional A3 · prepare local tooling','Use Node.js 24, Python 3.12, AWS CLI v2 and SAM CLI. Install backend requirements and ensure credentials resolve to the intended account and us-east-1 before validation or deployment.', 'u2','not-started'),
+  step('Optional A4 · authorize Amplify GitHub access safely','Install the regional AWS Amplify GitHub App for the target repository and prepare the required GitHub token privately. Never place the token in source, screenshots, the command line or committed samconfig.toml.', 'u5','not-started'),
+  step('Optional A5 · validate the SAM template','Run sam validate --lint --template-file backend/template.yaml, then sam build --template-file backend/template.yaml. Validation/build alone creates no AWS resources.', 'u3','not-started'),
+  step('Optional A6 · deploy through a reviewed changeset','Run the guided deployment with CAPABILITY_NAMED_IAM, enter the distinct prefix, repository URL, branch and notification email privately, and inspect the full CloudFormation changeset before approving any creation.', 'u2','not-started'),
+  step('Optional A7 · confirm resources created by the stack','The template targets Cognito pool/client, four DynamoDB tables and five GSIs, HTTP API, Lambda/scoped IAM, CloudWatch log groups/dashboard/alarms, Amplify app/branch and a $1 monthly budget. Compare outputs with the runbook.', 'u2','not-started'),
+  step('Optional A8 · configure six administrator-managed identities','Use the generated pool to create six users and unique custom:teamUserId values u1–u6. Obtain the correct stack outputs for the trusted profile seeder and keep real Cognito sub values private.', 'u4','not-started'),
+  step('Optional A9 · dry-run then write Users profile mappings','Install the declared backend dependencies, execute the profile seeding script with --dry-run, review the six rows, then repeat without --dry-run only after validating pool/table/region and account targeting.', 'u3','not-started'),
+  step('Optional A10 · complete authenticated end-to-end tests','Verify Amplify build, real Cognito sign-in, JWT authorizer, exact CORS origin, API child/history routes, archive/restore, CloudWatch metrics and budget notifications. A healthy stack output alone is not acceptance evidence.', 'u1','not-started'),
+  step('Optional A11 · update the same isolated stack carefully','For later template changes, validate/build again and deploy with the same stack name and prefix. Review changesets, preserve private parameters and check that no resource replacement affects data unexpectedly.', 'u2','not-started'),
+  step('Optional A12 · clean up the isolated stack safely','Before deleting, export/retain required data and inspect Retain policies. Deleting the stack can leave DynamoDB tables behind; deliberately handle retained tables before creating another stack with the same names.', 'u6','not-started')
  ];
- for(const [fi,f] of directJobFollowups.entries()){children.push({id:f.id,parentId:job.id,rootParentId:job.id,type:'followup',name:f.name,description:f.description,status:f.status,priority:f.priority,ownerId:f.ownerId,dueDate:dateKey(ago(-3)),createdAt:ago(f.created),createdBy:memberIdAt(10+fi),updatedAt:ago(0,f.updated),updatedBy:f.ownerId});}
- const all=[...parents,...children];const find=id=>all.find(x=>x.id===id);
- const ancestors=item=>{const ids=[];let cur=item;const seen=new Set();while(cur&&cur.parentId&&!seen.has(cur.parentId)){seen.add(cur.parentId);ids.push(cur.parentId);cur=find(cur.parentId);}if(item?.rootParentId&&!ids.includes(item.rootParentId))ids.push(item.rootParentId);return [...new Set(ids)];};
+ for(let ji=0;ji<jobSteps.length;ji++){
+  const st=jobSteps[ji];
+  const created=new Date(interpolate(jobCreated,nowDate,0.12+(ji+1)/(jobSteps.length+2)*0.68));
+  const updated=new Date(interpolate(created,nowDate,0.74+(ji%3)*0.04));
+  const item={
+   id:'fj'+(ji+1),parentId:job.id,rootParentId:job.id,type:'followup',
+   name:st.name,description:st.description,status:st.status,priority:priorities[ji%priorities.length],ownerId:st.ownerId,
+   dueDate:dateKey(ago(-(36+ji))),
+   createdAt:created.toISOString(),createdBy:memberIdAt(ji+1),
+   updatedAt:updated.toISOString(),updatedBy:st.ownerId
+  };
+  children.push(item);all.push(item);
+ }
+ const find=id=>all.find(x=>String(x.id)===String(id));
+ const ancestors=item=>{
+  const ids=[];let cursor=item;const seen=new Set();
+  while(cursor&&cursor.parentId&&!seen.has(String(cursor.parentId))){
+   seen.add(String(cursor.parentId));ids.push(String(cursor.parentId));cursor=find(cursor.parentId);
+  }
+  if(item&&item.rootParentId&&!ids.includes(String(item.rootParentId)))ids.push(String(item.rootParentId));
+  return [...new Set(ids)];
+ };
  const activity=[];
- const add=(itemId,at,userId,action,kind='update')=>{const item=find(itemId);if(!item)return;const root=item.type==='project'||item.type==='job'?item.id:item.rootParentId;activity.push({id:uid('a'),itemId:item.id,rootParentId:root,parentId:item.parentId||null,ancestorIds:ancestors(item),itemName:item.name,itemType:item.type,at,userId,action,kind});};
- for(const item of all){
-  add(item.id,item.createdAt,item.createdBy,`Created ${item.type}: ${item.name}`,'create');
-  if(new Date(item.updatedAt).getTime()>new Date(item.createdAt).getTime()+60000){
-   if(item.status!=='not-started')add(item.id,item.updatedAt,item.updatedBy,`Status changed from Not started to ${item.status==='completed'?'Completed':item.status==='in-progress'?'In progress':'On hold'}.`,'status');
-   else add(item.id,item.updatedAt,item.updatedBy,`Updated details for ${item.type}: ${item.name}.`,'update');
+ const add=(item,at,userId,action,kind)=>{
+  const root=(item.type==='project'||item.type==='job')?item:find(item.rootParentId);
+  activity.push({
+   id:uid('a'),itemId:item.id,rootParentId:root?.id||item.rootParentId||item.id,
+   rootParentName:root?.name||item.name,rootParentType:root?.type||item.type,
+   parentId:item.parentId||null,ancestorIds:ancestors(item),
+   itemName:item.name,itemType:item.type,at,userId,action,kind
+  });
+ };
+ const statusLabel=status=>status==='completed'?'Completed':status==='in-progress'?'In progress':status==='on-hold'?'On hold':'Not started';
+ for(let index=0;index<all.length;index++){
+  const item=all[index];const typeLabel=item.type==='followup'?'follow-up':item.type;
+  const startMs=Date.parse(item.createdAt);
+  const endMs=Math.max(startMs+120000,Date.parse(item.updatedAt));
+  const atFraction=fraction=>new Date(startMs+(endMs-startMs)*fraction).toISOString();
+  add(item,item.createdAt,item.createdBy,'Created '+typeLabel+': '+item.name,'create');
+  add(item,atFraction(0.32),memberIdAt(index+1),'Updated description for '+typeLabel+': '+item.name+'.','update');
+  add(item,atFraction(0.64),memberIdAt(index+3),'Updated assignee for '+typeLabel+': '+item.name+'.','update');
+  if(item.status==='not-started'){
+   add(item,item.updatedAt,item.updatedBy,'Updated details for '+typeLabel+': '+item.name+'.','update');
+  }else{
+   add(item,item.updatedAt,item.updatedBy,'Status changed from Not started to '+statusLabel(item.status)+'.','status');
   }
  }
  return {schema:4,users,parents,children,activity};
