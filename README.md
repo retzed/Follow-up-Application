@@ -104,7 +104,7 @@ The static build is written to `dist/index.html`. No third-party package install
 
 ## Configuration
 
-The browser-local demo is intentionally zero-configuration. It does not need a .env file, AWS account, Cognito configuration, API URL, backend server, or database setup. scripts/build.mjs replaces the runtime-configuration block with demo-only settings and explicitly clears AWS user-pool, client, and API values. Do not add production credentials or private data to the public repository.
+The browser-local demo is intentionally zero-configuration. It does not need a `.env` file, AWS account, Cognito configuration, API URL, backend server, or database setup. `scripts/build.mjs` replaces the runtime-configuration block with demo-only settings and explicitly clears AWS user-pool, client, and API values. Do not add production credentials or private data to the public repository.
 
 To rebuild the static artifact after changing the source:
 
@@ -112,7 +112,7 @@ To rebuild the static artifact after changing the source:
 npm run build
 ```
 
-The generated dist/index.html is the browser-loadable deployment artifact. Preview that artifact locally with:
+The generated `dist/index.html` is the browser-loadable deployment artifact. Preview that artifact locally with:
 
 ```bash
 python -m http.server 8000 --directory dist
@@ -122,13 +122,13 @@ Then open [http://localhost:8000](http://localhost:8000).
 
 ## API documentation
 
-The public demo has **no HTTP/REST API** and makes no requests to a remote database. TeamFollowUpDataApi is an internal asynchronous JavaScript interface implemented in the browser; its built-in adapter persists the demonstration workspace in localStorage. Its method names are not externally callable HTTP endpoints.
+The public demo has **no HTTP/REST API** and makes no requests to a remote database. `TeamFollowUpDataApi` is an internal asynchronous JavaScript interface implemented in the browser; its built-in adapter persists the demonstration workspace in `localStorage`. Its method names are not externally callable HTTP endpoints.
 
 For the separate Cognito/API Gateway/Lambda/DynamoDB implementation, see the [AWS deployment repository](https://github.com/retzed/Team_Follow-Up_AWS-Deployment), which documents that API contract.
 
 ## Executable artifact and deployed application
 
-This is a browser-based web application, so a native .exe, .jar, or .apk package is not applicable. The deployable web artifact is dist/index.html plus .nojekyll; the GitHub Actions workflow builds it and publishes it to GitHub Pages.
+This is a browser-based web application, so a native `.exe`, `.jar`, or `.apk` package is not applicable. The deployable web artifact is `dist/index.html` plus `.nojekyll`; the GitHub Actions workflow builds it and publishes it to GitHub Pages.
 
 - **Run the deployed demo:** [https://retzed.github.io/Team_Follow-Up/](https://retzed.github.io/Team_Follow-Up/)
 - **Review deployment status/build:** [GitHub Actions — Test and deploy demo](https://github.com/retzed/Team_Follow-Up/actions/workflows/pages.yml)
