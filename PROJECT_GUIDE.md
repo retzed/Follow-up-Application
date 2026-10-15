@@ -142,12 +142,12 @@ The public website is published from `main` by the GitHub Actions workflow in `.
 
 ### Initial setup (one time)
 
-1. Open the public repository: [retzed/Follow-up-Application](https://github.com/retzed/Follow-up-Application).
+1. Open the repository
 2. Select **Settings → Pages**.
 3. Under **Build and deployment**, set **Source** to **GitHub Actions**.
 4. Push a commit to `main`, or open **Actions** and run the workflow manually.
 5. Open the newest **Test and deploy demo** run. Wait for both build and deployment jobs to finish successfully.
-6. Visit **https://retzed.github.io/Follow-up-Application/**. The first publication may take a short time to become available.
+6. The first publication may take a short time to become available.
 
 ### Ongoing updates
 
