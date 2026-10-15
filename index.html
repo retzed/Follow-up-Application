@@ -1265,8 +1265,12 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  function writeTables(t){
   const wasUninitialized=!memoryTables;
   memoryTables=t;
-  if(wasUninitialized&&Array.isArray(t.activityEvents)){activityTableLoaded=true;activityTableDirty=true;}
-  else if(activityTableLoaded)activityTableDirty=true;
+  if(wasUninitialized&&Array.isArray(t.activityEvents)){
+   try{
+    localStorage.setItem(ACTIVITY_TABLE_KEY,JSON.stringify(t.activityEvents));
+    memoryTables.activityEvents=[];activityTableLoaded=false;activityTableDirty=false;
+   }catch(e){activityTableLoaded=true;activityTableDirty=true;}
+  }else if(activityTableLoaded)activityTableDirty=true;
   scheduleTableStorageSave();
  }
  function ensureIndexFields(item){
