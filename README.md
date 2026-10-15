@@ -11,7 +11,7 @@ A bilingual (English/Arabic) team workspace for organizing projects, jobs, tasks
 1. Open the [hosted demo application](https://retzed.github.io/Team_Follow-Up/). If the site has not been published for this repository yet, follow the one-time [GitHub Pages setup](PROJECT_GUIDE.md#7-github-pages-publishing).
 2. Enter one of the built-in team usernames below. English and Arabic aliases are supported.
 3. Enter **any non-empty password** and sign in. The password is not checked; this is intentionally only a demonstration flow.
-4. Explore sample projects, jobs, tasks, follow-ups, assignments, activity history, search filters, and archive.
+4. Explore the comprehensive AWS deployment runbook built into the workspace: 14 documentation Projects plus a separate optional SAM/CloudFormation Job, 70 Tasks, 320 Follow-ups, and 1,620 Activity events.
 
 | Demo teammate | Username (English) | Username (Arabic) | Team label |
 |---|---|---|---|
@@ -29,6 +29,8 @@ The demo username selects which teammate appears as the current user; the passwo
 - Work items, assignments, archive entries, and activity events are saved in the browser's `localStorage` for this site.
 - The demo sign-in session is stored in the current browser tab's `sessionStorage`.
 - Visitors using another browser, device, profile, or private window have a separate local workspace. The app does not synchronize demo data over the internet.
+- The built-in workspace is intentionally large: **405 work items and 1,620 Activity events**. It organizes the AWS project step by step across architecture, account/cost setup, Cognito, all four DynamoDB tables and five GSIs, IAM/Lambda, API Gateway, Amplify, frontend integration, lazy loading, archive/restore, CloudWatch, acceptance testing, recovery, and an isolated optional SAM/CloudFormation path.
+- The enlarged fixture is demo-only and remains in browser storage. It is not uploaded, synchronized, or seeded into the AWS deployment account. The demo’s built-in storage namespace was versioned so existing browser profiles start with the new runbook data after the updated app is published; earlier demo data remains isolated under the old local-storage keys.
 
 ## What the application does
 
