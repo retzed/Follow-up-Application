@@ -9,7 +9,7 @@ const memory = new Map();
 const warnings = [];
 const adapterSource = match[1];
 function adapterStorageKey(name) {
-  const found = adapterSource.match(new RegExp(String.raw`\\bconst\\s+${name}\\s*=\\s*['"]([^'"]+)['"]`));
+  const found = adapterSource.match(new RegExp(String.raw`\bconst\s+${name}\s*=\s*['"]([^'"]+)['"]`));
   assert.ok(found, `data API adapter declares ${name}`);
   return found[1];
 }
