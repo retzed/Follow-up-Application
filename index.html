@@ -1183,6 +1183,7 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  const mode=String(cfg.dataMode||'builtin').toLowerCase();
  const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v1';
  const ACTIVITY_TABLE_KEY='team-follow-up-builtin-dynamodb-activity-table-v1';
+ const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v1:';
  const names=Object.freeze({workItems:'TeamFollowUp-WorkItems',activity:'TeamFollowUp-ActivityEvents',users:'TeamFollowUp-UserProfiles',archive:'TeamFollowUp-Archive'});
  let memoryTables=null;let tableStorageSaveTimer=0;
  const clone=value=>JSON.parse(JSON.stringify(value??null));
@@ -1222,6 +1223,7 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
    localStorage.setItem(TABLES_KEY,JSON.stringify(primary));
    if(activityTableLoaded&&activityTableDirty){
     localStorage.setItem(ACTIVITY_TABLE_KEY,JSON.stringify(memoryTables.activityEvents||[]));
+    for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key&&key.startsWith(ACTIVITY_EVENT_PREFIX))localStorage.removeItem(key);}
     activityTableDirty=false;
    }
   }catch(e){console.warn('Built-in tables cannot persist in browser storage; this session will use memory storage.',e);}
@@ -1229,14 +1231,61 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  function scheduleTableStorageSave(){if(typeof setTimeout!=='function'){flushTableStorage();return;}if(tableStorageSaveTimer)clearTimeout(tableStorageSaveTimer);tableStorageSaveTimer=setTimeout(()=>{tableStorageSaveTimer=0;flushTableStorage();},0);}
  if(typeof window.addEventListener==='function')window.addEventListener('pagehide',flushTableStorage,{capture:true});
  let activityTableLoaded=false,activityTableDirty=false;
+ function activityEventStorageKey(itemId,eventId){return ACTIVITY_EVENT_PREFIX+encodeURIComponent(String(itemId||''))+':'+encodeURIComponent(String(eventId||''));}
+ function migrateLegacyActivityArray(){
+  let raw=null;try{raw=localStorage.getItem(ACTIVITY_TABLE_KEY);}catch(error){return;}
+  if(raw===null)return;
+  try{
+   const rows=JSON.parse(raw);if(!Array.isArray(rows))throw new Error('Legacy Activity storage must contain an array.');
+   for(const event of rows)persistActivityEvent(event);
+   localStorage.removeItem(ACTIVITY_TABLE_KEY);
+  }catch(error){console.warn('Legacy Activity history migration failed; legacy data was retained.',error);}
+ }
+ function persistActivityEvent(raw){
+  let event=ensureActivityIndexes(raw);
+  if(!event.eventId)throw new Error('eventId is required.');
+  let key=activityEventStorageKey(event.itemId,event.eventId);
+  try{
+   const rawExisting=localStorage.getItem(key);
+   if(rawExisting!==null){
+    const existing=JSON.parse(rawExisting);
+    if(activityIdentity(existing)===activityIdentity(event))event=ensureActivityIndexes({...existing,...event,eventId:event.eventId});
+    else{
+     const base=event.eventId;let candidate;
+     do{candidate=base+'_collision_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);key=activityEventStorageKey(event.itemId,candidate);}while(localStorage.getItem(key)!==null);
+     event=ensureActivityIndexes({...event,eventId:candidate});
+    }
+   }
+   localStorage.setItem(key,JSON.stringify(event));
+  }catch(error){
+   if(memoryTables){const rows=memoryTables.activityEvents||(memoryTables.activityEvents=[]);const index=rows.findIndex(row=>String(row.eventId||row.id||'')===String(event.eventId));if(index<0)rows.push(event);else rows[index]=event;activityTableLoaded=true;activityTableDirty=true;}
+   else throw error;
+  }
+  return event;
+ }
+ function readActivityEventsForItems(itemIds){
+  migrateLegacyActivityArray();
+  const wanted=(itemIds||[]).map(id=>String(id||'')).filter(Boolean);
+  const prefixes=wanted.map(id=>ACTIVITY_EVENT_PREFIX+encodeURIComponent(id)+':');
+  const rows=new Map();
+  for(let i=0;i<localStorage.length;i++){
+   const key=localStorage.key(i);if(!key||!prefixes.some(prefix=>key.startsWith(prefix)))continue;
+   try{const row=JSON.parse(localStorage.getItem(key)||'null');if(row&&row.eventId)rows.set(String(row.eventId),ensureActivityIndexes(row));}catch(error){console.warn('A stored Activity event could not be read.',error);}
+  }
+  return [...rows.values()];
+ }
+ function readAllActivityEvents(){
+  migrateLegacyActivityArray();
+  const rows=new Map();
+  for(let i=0;i<localStorage.length;i++){
+   const key=localStorage.key(i);if(!key||!key.startsWith(ACTIVITY_EVENT_PREFIX))continue;
+   try{const row=JSON.parse(localStorage.getItem(key)||'null');if(row&&row.eventId)rows.set(String(row.eventId),ensureActivityIndexes(row));}catch(error){console.warn('A stored Activity event could not be read.',error);}
+  }
+  return [...rows.values()];
+ }
  function loadActivityTableIfNeeded(){
   if(activityTableLoaded||!memoryTables)return;
-  let rows=[];
-  try{
-   const raw=localStorage.getItem(ACTIVITY_TABLE_KEY);
-   if(raw!==null){const parsed=JSON.parse(raw);if(!Array.isArray(parsed))throw new Error('Activity table storage must contain an array.');rows=parsed;}
-  }catch(e){console.warn('Built-in Activity table could not be loaded; using an empty Activity snapshot.',e);}
-  memoryTables.activityEvents=rows;activityTableLoaded=true;activityTableDirty=false;
+  memoryTables.activityEvents=readAllActivityEvents();activityTableLoaded=true;activityTableDirty=false;
  }
  function readTables(includeActivity=false){
   if(memoryTables){
@@ -1252,8 +1301,11 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
      const hasLegacyActivity=Array.isArray(t.activityEvents);
      const legacyActivity=hasLegacyActivity?t.activityEvents:null;
      const normalized=normalizeTables(t);memoryTables=normalized.tables;
-     if(hasLegacyActivity){memoryTables.activityEvents=legacyActivity;activityTableLoaded=true;activityTableDirty=true;}
-     else {memoryTables.activityEvents=[];activityTableLoaded=false;activityTableDirty=false;}
+     if(hasLegacyActivity){
+      memoryTables.activityEvents=[];activityTableLoaded=false;activityTableDirty=false;
+      try{for(const event of legacyActivity||[])persistActivityEvent(event);}
+      catch(error){memoryTables.activityEvents=legacyActivity||[];activityTableLoaded=true;activityTableDirty=true;}
+     }else {memoryTables.activityEvents=[];activityTableLoaded=false;activityTableDirty=false;}
      if(normalized.migrated||!Array.isArray(t.archiveItems)||hasLegacyActivity)scheduleTableStorageSave();
      if(includeActivity)loadActivityTableIfNeeded();
      return clone(memoryTables);
@@ -1266,10 +1318,10 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
   const wasUninitialized=!memoryTables;
   memoryTables=t;
   if(wasUninitialized&&Array.isArray(t.activityEvents)){
-   try{
-    localStorage.setItem(ACTIVITY_TABLE_KEY,JSON.stringify(t.activityEvents));
-    memoryTables.activityEvents=[];activityTableLoaded=false;activityTableDirty=false;
-   }catch(e){activityTableLoaded=true;activityTableDirty=true;}
+   const seedEvents=t.activityEvents.slice();
+   memoryTables.activityEvents=[];activityTableLoaded=false;activityTableDirty=false;
+   try{for(const event of seedEvents)persistActivityEvent(event);localStorage.removeItem(ACTIVITY_TABLE_KEY);}
+   catch(e){memoryTables.activityEvents=seedEvents;activityTableLoaded=true;activityTableDirty=true;}
   }else if(activityTableLoaded)activityTableDirty=true;
   scheduleTableStorageSave();
  }
@@ -1295,70 +1347,17 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  }
  function activityIdentity(event){return JSON.stringify([String(event.itemId||''),String(event.rootParentId||''),String(event.parentId||''),String(event.action||event.summary||''),String(event.kind||''),String(event.userId||event.actorUserId||'')]);}
  function storeActivityEvent(tables,raw){
-  let event=ensureActivityIndexes(raw);if(!event.eventId)throw new Error('eventId is required.');
-  const existingIndex=tables.activityEvents.findIndex(row=>String(row.eventId||row.id||'')===event.eventId);
-  if(existingIndex<0){tables.activityEvents.push(event);return event;}
-  const existing=tables.activityEvents[existingIndex];
-  if(activityIdentity(existing)===activityIdentity(event)){
-   event=ensureActivityIndexes({...existing,...event,eventId:event.eventId});tables.activityEvents[existingIndex]=event;return event;
+  const event=persistActivityEvent(raw);
+  if(activityTableLoaded){
+   const existingIndex=tables.activityEvents.findIndex(row=>String(row.eventId||row.id||'')===String(event.eventId));
+   if(existingIndex<0)tables.activityEvents.push(event);else tables.activityEvents[existingIndex]=event;
+   activityTableDirty=true;
   }
-  // A duplicate identifier must never replace a distinct immutable audit row.
-  const base=event.eventId;let candidate;
-  do{candidate=`${base}_collision_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,9)}`;}
-  while(tables.activityEvents.some(row=>String(row.eventId||row.id||'')===candidate));
-  const rawCopy={...(raw||{}),id:candidate,eventId:candidate};event=ensureActivityIndexes(rawCopy);tables.activityEvents.push(event);return event;
+  return event;
  }
- function toAppItem(record){
-  const x=clone(record)||{};x.id=String(x.id||x.itemId||'');delete x.itemId;
-  for(const k of ['listPK','updatedSort','createdSort','rootPK','rootUpdatedSort','assigneePK','assigneeUpdatedSort','assigneeCreatedSort','deletedAt'])delete x[k];
-  return x;
- }
- function toAppEvent(record){
-  const x=clone(record)||{};x.id=String(x.id||x.eventId||'');delete x.eventId;
-  if(!x.itemName&&x.itemNameSnapshot)x.itemName=x.itemNameSnapshot;
-  if(!x.itemType&&x.itemTypeSnapshot)x.itemType=x.itemTypeSnapshot;
-  if(!x.userId&&x.actorUserId)x.userId=x.actorUserId;
-  for(const k of ['itemNameSnapshot','itemTypeSnapshot','actorUserId','itemPK','itemSort','applicationPK','applicationSort','rootPK','rootSort','parentPK','parentSort'])delete x[k];
-  return x;
- }
- function toAppArchiveRecord(record){const x=toAppItem(record);x.id=String(record.archiveId||record.itemId||record.id||'');x.archiveRootId=String(record.archiveRootId||record.rootParentId||x.id);x.archiveRootName=String(record.archiveRootName||record.name||'');x.archivedAt=String(record.archivedAt||record.deletedAt||'');x.archivedBy=String(record.archivedByUserId||record.updatedByUserId||record.updatedBy||'');for(const k of ['archiveId','archivePK','archiveSort','archiveRootPK','archiveRootSort','archiveParentId','archivedByUserId','deletedAt'])delete x[k];return x;}
- function toTableUser(user){const u=clone(user)||{};const row={userId:String(u.userId||u.id||''),displayName:String(u.displayName||u.name||''),role:String(u.role||'AWS Engineer'),enabled:u.enabled!==false};const sub=u.cognitoSub||u.sub;if(sub)row.cognitoSub=String(sub);return row;}
- function toAppUser(user){return {id:String(user.userId||user.id||''),name:String(user.displayName||user.name||''),role:String(user.role||'AWS Engineer'),...(user.cognitoSub?{cognitoSub:user.cognitoSub}:{})};}
- function snapshotFromTables(tables){
-  const active=(tables.workItems||[]).filter(x=>!x.deletedAt).map(toAppItem);
-  const parents=active.filter(x=>x.type==='project'||x.type==='job');
-  const children=active.filter(x=>x.type!=='project'&&x.type!=='job');
-  const activity=(tables.activityEvents||[]).map(toAppEvent);
-  const users=(tables.userProfiles||[]).filter(u=>u.enabled!==false).map(toAppUser);
-  return {schema:4,users,parents,children,activity};
- }
- function tableFromSnapshot(snapshot){
-  return {
-   schema:1,
-   workItems:[...(snapshot.parents||[]),...(snapshot.children||[])].map(ensureIndexFields),
-   activityEvents:(snapshot.activity||[]).map(ensureActivityIndexes),
-   userProfiles:(snapshot.users||[]).map(toTableUser),
-   archiveItems:[]
-  };
- }
- function logCall(method,path,source){try{const rows=window.__TEAM_FOLLOW_UP_API_LOG||(window.__TEAM_FOLLOW_UP_API_LOG=[]);rows.push({at:now(),method,path,adapter:source||mode});if(rows.length>300)rows.splice(0,rows.length-300);}catch(e){}}
- function itemSort(a,b,mode,direction){const key=mode==='updated'?'updatedSort':'createdSort';const ka=a[key]||'';const kb=b[key]||'';return (ka<kb?-1:ka>kb?1:0)*(direction==='asc'?1:-1);}
- function matchItem(x,p){
-  if(x.deletedAt)return false;
-  if(p.type&&p.type!=='all'&&x.type!==p.type)return false;
-  if(p.status&&p.status!=='all'&&p.status!=='not-completed'&&x.status!==p.status)return false;
-  if(p.status==='not-completed'&&x.status==='completed')return false;
-  if(p.priority&&p.priority!=='all'&&x.priority!==p.priority)return false;
-  if(p.query){const q=String(p.query).toLocaleLowerCase();if(!String(x.name||'').toLocaleLowerCase().includes(q)&&!String(x.description||'').toLocaleLowerCase().includes(q))return false;}
-  const dateMode=p.dateMode||'updated';const key=dateMode==='updated'?x.updatedAt:x.createdAt;
-  if(p.from&&String(key||'').slice(0,10)<p.from)return false;
-  if(p.to&&String(key||'').slice(0,10)>p.to)return false;
-  return true;
- }
- function sortItems(rows,p){const dir=p.direction||(p.dateMode==='created-asc'?'asc':'desc');const mode=String(p.dateMode||'updated')==='updated'?'updated':'created';return rows.sort((a,b)=>itemSort(a,b,mode,dir));}
  function mockRoute(method,path,body){
   const url=new URL(path,'https://builtin.local/');const clean=url.pathname.replace(/\/+$/,'')||'/';const q=url.searchParams;
-  const needsActivity=method!=='GET'||clean==='/activity'||new RegExp('^/items/[^/]+/activity$').test(clean);let tables=readTables(needsActivity);if(!tables)throw new Error('Built-in table store has not been initialized.');
+  const needsActivity=method!=='GET'&&(clean==='/activity'||new RegExp('^/activity/[^/]+$').test(clean));let tables=readTables(needsActivity);if(!tables)throw new Error('Built-in table store has not been initialized.');
   const respond=value=>Promise.resolve(clone(value));
   const persist=()=>writeTables(tables);
   const allActive=()=>tables.workItems.filter(x=>!x.deletedAt);
@@ -1380,7 +1379,17 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
   let m=clean.match(/^\/items\/([^/]+)\/children$/);
   if(method==='GET'&&m){const parentId=decodeURIComponent(m[1]);const p={type:q.get('type')||'all',status:q.get('status')||'all',priority:q.get('priority')||'all',query:q.get('q')||'',dateMode:q.get('dateMode')||'updated',from:q.get('from')||'',to:q.get('to')||'',direction:q.get('direction')||'desc'};let rows=allActive().filter(x=>x.listPK===`PARENT#${parentId}`).filter(x=>matchItem(x,p));rows.sort((a,b)=>itemSort(a,b,String(p.dateMode)==='updated'?'updated':'created',p.direction));const limit=Math.max(1,Math.min(250,Number(q.get('limit')||100)));const offset=Math.max(0,Number(q.get('offset')||0));return respond({items:rows.slice(offset,offset+limit).map(toAppItem),count:rows.length,nextOffset:offset+limit<rows.length?offset+limit:null});}
   m=clean.match(/^\/items\/([^/]+)\/activity$/);
-  if(method==='GET'&&m){const itemId=decodeURIComponent(m[1]);const item=tables.workItems.find(x=>x.itemId===itemId);const scope=q.get('scope')||'item';let events;if(scope==='all'&&item&&['project','job'].includes(item.type))events=tables.activityEvents.filter(e=>e.rootPK===`ROOT#${itemId}`);else if(scope==='all'&&item&&item.type==='task')events=tables.activityEvents.filter(e=>e.itemPK===`ITEM#${itemId}`||e.parentPK===`PARENT#${itemId}`);else events=tables.activityEvents.filter(e=>e.itemPK===`ITEM#${itemId}`);const search=(q.get('q')||'').toLocaleLowerCase();if(search)events=events.filter(e=>[e.summary,e.action,e.itemNameSnapshot,e.actorUserId].some(v=>String(v||'').toLocaleLowerCase().includes(search)));events.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))||String(b.eventId||b.id||'').localeCompare(String(a.eventId||a.id||'')));return respond({events:events.map(toAppEvent),count:events.length});}
+  if(method==='GET'&&m){
+   const itemId=decodeURIComponent(m[1]);const item=tables.workItems.find(x=>x.itemId===itemId);const scope=q.get('scope')||'item';let itemIds;
+   if(scope==='all'&&item&&['project','job'].includes(item.type))itemIds=allActive().filter(x=>x.rootPK===`ROOT#${itemId}`).map(x=>String(x.itemId));
+   else if(scope==='all'&&item&&item.type==='task')itemIds=[itemId,...allActive().filter(x=>String(x.parentId||'')===itemId).map(x=>String(x.itemId))];
+   else itemIds=[itemId];
+   let events=readActivityEventsForItems(itemIds);
+   const search=(q.get('q')||'').toLocaleLowerCase();
+   if(search)events=events.filter(e=>[e.summary,e.action,e.itemNameSnapshot,e.actorUserId].some(v=>String(v||'').toLocaleLowerCase().includes(search)));
+   events.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))||String(b.eventId||b.id||'').localeCompare(String(a.eventId||a.id||'')));
+   return respond({events:events.map(toAppEvent),count:events.length});
+  }
   if(method==='POST'&&clean==='/items'){
    const payload=clone(body)||{};const relatedEvents=Array.isArray(payload.activityEvents)?payload.activityEvents:[];delete payload.activityEvents;
    const x=ensureIndexFields(payload);if(!x.itemId)throw new Error('itemId is required.');const existing=tables.workItems.findIndex(i=>i.itemId===x.itemId);if(existing>=0)tables.workItems[existing]=x;else tables.workItems.push(x);
@@ -1412,7 +1421,7 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
    persist();return respond({ok:true,restoredIds:restored.map(x=>x.id),restoredItems:restored,activityEvents:savedEvents});
   }
   if(m&&method==='DELETE'){const id=decodeURIComponent(m[1]);const i=tables.workItems.findIndex(x=>x.itemId===id&&!x.deletedAt);if(i<0)throw new Error('Item not found.');const payload=clone(body)||{};const relatedEvents=Array.isArray(payload.activityEvents)?payload.activityEvents:[];const deletedAt=now();const current=tables.workItems[i];const actor=String(relatedEvents[0]?.userId||current.updatedByUserId||current.updatedBy||'');const currentRoot=['project','job'].includes(current.type)?id:String(current.rootParentId||current.parentId||id);const isLeafFollowup=current.type==='followup';const scoped=isLeafFollowup?[current]:allActive().filter(row=>String(row.rootPK||'')===`ROOT#${currentRoot}`||String(row.itemId)===id);const byParent=new Map();for(const row of scoped){const pid=String(row.parentId||'');if(pid){if(!byParent.has(pid))byParent.set(pid,[]);byParent.get(pid).push(row);}}const collected=[],seen=new Set(),queue=[{row:current,depth:0}];let queuePos=0;while(queuePos<queue.length){const next=queue[queuePos++];const childId=String(next.row.itemId);if(seen.has(childId))continue;seen.add(childId);collected.push(next);for(const child of byParent.get(childId)||[])queue.push({row:child,depth:next.depth+1});}collected.sort((a,b)=>b.depth-a.depth||String(a.row.itemId).localeCompare(String(b.row.itemId)));const needed=new Set();for(const entry of collected){const row=entry.row;needed.add(String(row.itemId));const rootKey=['project','job'].includes(row.type)?String(row.itemId):String(row.rootParentId||row.parentId||'');const parentKey=String(row.parentId||'');if(rootKey)needed.add(rootKey);if(parentKey)needed.add(parentKey);}const archiveLookupIndex={workById:new Map(),archiveById:new Map()};for(const row of tables.workItems||[]){const key=String(row.itemId||row.id);if(needed.has(key))archiveLookupIndex.workById.set(key,row);}for(const row of tables.archiveItems||[]){const key=String(row.archiveId||row.itemId||row.id);if(needed.has(key))archiveLookupIndex.archiveById.set(key,row);}for(const entry of collected){const row=entry.row;const archiveRecord=buildArchiveRecord(row,tables,deletedAt,actor,archiveLookupIndex);const existingArchive=tables.archiveItems.findIndex(x=>String(x.archiveId||x.itemId)===String(row.itemId));if(existingArchive>=0)tables.archiveItems[existingArchive]=archiveRecord;else tables.archiveItems.push(archiveRecord);const wi=tables.workItems.findIndex(x=>String(x.itemId)===String(row.itemId));if(wi>=0)tables.workItems.splice(wi,1);}const savedEvents=[];const raw=relatedEvents.find(e=>String(e.itemId||'')===id)||relatedEvents[0];if(raw){const event=ensureActivityIndexes({...raw,itemId:id,itemName:current.name,itemType:current.type,rootParentId:current.rootParentId||id,parentId:current.parentId||null,userId:actor,at:deletedAt,kind:'delete',affectedCount:collected.length,affectedDescendantCount:Math.max(0,collected.length-1)});event.action=`Deleted ${current.type}: ${current.name}`;event.summary=event.action;savedEvents.push(toAppEvent(storeActivityEvent(tables,event)));}else{const action=`Deleted ${current.type}: ${current.name}`;const fallback=storeActivityEvent(tables,{id:`evt_delete_${id}_${Date.now()}`,itemId:id,itemName:current.name,itemType:current.type,rootParentId:current.rootParentId||id,parentId:current.parentId||null,userId:actor,action,summary:action,kind:'delete',at:deletedAt,affectedCount:collected.length,affectedDescendantCount:Math.max(0,collected.length-1)});savedEvents.push(toAppEvent(fallback));}persist();return respond({ok:true,itemId:id,archived:true,archivedItemIds:collected.map(x=>String(x.row.itemId)),activityEvents:savedEvents});}
-  if(method==='GET'&&clean==='/activity'){let rows=tables.activityEvents.slice();const root=q.get('rootParentId');const item=q.get('itemId');const parent=q.get('parentId');if(root)rows=rows.filter(e=>e.rootPK===`ROOT#${root}`);if(item)rows=rows.filter(e=>e.itemPK===`ITEM#${item}`);if(parent)rows=rows.filter(e=>e.parentPK===`PARENT#${parent}`);rows.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))||String(b.eventId||b.id||'').localeCompare(String(a.eventId||a.id||'')));return respond({events:rows.map(toAppEvent),count:rows.length});}
+  if(method==='GET'&&clean==='/activity'){let rows=readAllActivityEvents();const root=q.get('rootParentId');const item=q.get('itemId');const parent=q.get('parentId');if(root)rows=rows.filter(e=>e.rootPK===`ROOT#${root}`);if(item)rows=rows.filter(e=>e.itemPK===`ITEM#${item}`);if(parent)rows=rows.filter(e=>e.parentPK===`PARENT#${parent}`);rows.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))||String(b.eventId||b.id||'').localeCompare(String(a.eventId||a.id||'')));return respond({events:rows.map(toAppEvent),count:rows.length});}
   if(method==='POST'&&clean==='/activity'){const e=storeActivityEvent(tables,body);persist();return respond(toAppEvent(e));}
   m=clean.match(/^\/activity\/([^/]+)$/);
   if(m&&method==='PATCH'){const id=decodeURIComponent(m[1]);const i=tables.activityEvents.findIndex(x=>x.eventId===id);if(i<0)throw new Error('Activity event not found.');tables.activityEvents[i]=ensureActivityIndexes({...tables.activityEvents[i],...(body||{}),eventId:id});persist();return respond(toAppEvent(tables.activityEvents[i]));}
