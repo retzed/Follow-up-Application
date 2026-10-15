@@ -7,8 +7,15 @@ const match = html.match(/<script id="team-follow-up-data-api">([\s\S]*?)<\/scri
 assert.ok(match, 'data API adapter script exists');
 const memory = new Map();
 const warnings = [];
-const activityPrefix = 'team-follow-up-builtin-dynamodb-activity-event-v1:';
-const activityTableKey = 'team-follow-up-builtin-dynamodb-activity-table-v1';
+const adapterSource = match[1];
+function adapterStorageKey(name) {
+  const found = adapterSource.match(new RegExp(String.raw`\\bconst\\s+${name}\\s*=\\s*['"]([^'"]+)['"]`));
+  assert.ok(found, `data API adapter declares ${name}`);
+  return found[1];
+}
+const tableKey = adapterStorageKey('TABLES_KEY');
+const activityPrefix = adapterStorageKey('ACTIVITY_EVENT_PREFIX');
+const activityTableKey = adapterStorageKey('ACTIVITY_TABLE_KEY');
 function storedActivityEvents(store = memory) {
   const rows = [];
   const legacy = store.get(activityTableKey);
@@ -63,7 +70,6 @@ assert.ok(!(window.__TEAM_FOLLOW_UP_API_LOG || []).some(x => /rootParentId=/.tes
 const selectedRootItems = await api.queryRootItems('p-old');
 assert.deepEqual(Array.from(selectedRootItems.items, x => x.id).sort(), ['f-direct', 'f-nested', 't-1'], 'selecting one root loads only its descendants');
 
-const tableKey = 'team-follow-up-builtin-dynamodb-tables-v1';
 const tables = JSON.parse(memory.get(tableKey));
 assert.equal(tables.workItems.find(x => x.itemId === 'p-old').listPK, 'TOP_LEVEL');
 assert.equal(tables.workItems.find(x => x.itemId === 't-1').listPK, 'PARENT#p-old');
