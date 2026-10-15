@@ -25,6 +25,8 @@ const window = { TEAM_FOLLOW_UP_CONFIG: { dataMode: 'builtin' } };
 const context = {
   window,
   localStorage: {
+    get length() { return memory.size; },
+    key: index => [...memory.keys()][index] ?? null,
     getItem: key => memory.has(key) ? memory.get(key) : null,
     setItem: (key, value) => memory.set(key, String(value)),
     removeItem: key => memory.delete(key)
@@ -222,6 +224,8 @@ const pagingWindow = { TEAM_FOLLOW_UP_CONFIG: { dataMode: 'builtin' } };
 const pagingContext = {
   window: pagingWindow,
   localStorage: {
+    get length() { return pagingMemory.size; },
+    key: index => [...pagingMemory.keys()][index] ?? null,
     getItem: key => pagingMemory.has(key) ? pagingMemory.get(key) : null,
     setItem: (key, value) => pagingMemory.set(key, String(value)),
     removeItem: key => pagingMemory.delete(key)
