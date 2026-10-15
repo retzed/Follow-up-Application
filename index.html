@@ -1181,9 +1181,9 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  'use strict';
  const cfg=window.TEAM_FOLLOW_UP_CONFIG||{};
  const mode=String(cfg.dataMode||'builtin').toLowerCase();
- const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v2';
- const ACTIVITY_TABLE_KEY='team-follow-up-builtin-dynamodb-activity-table-v2';
- const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v2:';
+ const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v3';
+ const ACTIVITY_TABLE_KEY='team-follow-up-builtin-dynamodb-activity-table-v3';
+ const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v3:';
  const names=Object.freeze({workItems:'TeamFollowUp-WorkItems',activity:'TeamFollowUp-ActivityEvents',users:'TeamFollowUp-UserProfiles',archive:'TeamFollowUp-Archive'});
  let memoryTables=null;let tableStorageSaveTimer=0;
  const clone=value=>JSON.parse(JSON.stringify(value??null));
@@ -1934,7 +1934,7 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
 (async () => {
 'use strict';
 try {
-const STORAGE_KEY = 'team-follow-up-demo-v4';
+const STORAGE_KEY = 'team-follow-up-demo-v5';
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 /* Central HTML-escaping boundary. Escape untrusted work-item, user, and API values before interpolating them into HTML; use textContent when markup is unnecessary. */
