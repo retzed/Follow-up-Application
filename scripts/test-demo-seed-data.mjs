@@ -34,12 +34,12 @@ const eventsByItem = new Map();
 const eventIds = new Set();
 
 assert.equal(data.users.length, 6, 'The demo retains all six teammate profiles.');
-assert.equal(projects.length, 14, 'The AWS runbook contains fourteen Project chapters.');
+assert.equal(projects.length, 16, 'The AWS runbook contains sixteen Project chapters.');
 assert.equal(jobs.length, 1, 'The optional SAM route is a separate Job.');
-assert.equal(tasks.length, 70, 'Each Project chapter contains five documentation Tasks.');
-assert.equal(followups.length, 320, 'The dataset includes task steps, project checkpoints and optional-job steps.');
-assert.equal(allItems.length, 405, 'The full built-in AWS documentation workspace has 405 work items.');
-assert.equal(data.activity.length, 1620, 'Each work item has four seeded Activity events.');
+assert.equal(tasks.length, 80, 'Each Project chapter contains five documentation Tasks.');
+assert.equal(followups.length, 364, 'The dataset includes task steps, project checkpoints and optional-job steps.');
+assert.equal(allItems.length, 461, 'The full built-in AWS documentation workspace has 461 work items.');
+assert.equal(data.activity.length, 1844, 'Each work item has four seeded Activity events.');
 assert.equal(new Set(allItems.map(item => item.id)).size, allItems.length, 'Every work item ID is unique.');
 
 for (const item of allItems) {
@@ -102,4 +102,4 @@ assert.ok(html.includes("const STORAGE_KEY = 'team-follow-up-demo-v4';"), 'The d
 assert.ok(html.includes("const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v2';"), 'Existing browser profiles receive fresh built-in work items.');
 assert.ok(html.includes("const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v2:'"), 'Existing browser profiles receive the expanded Activity fixture.');
 
-console.log('Demo seed-data tests passed: 405 work items, 1,620 Activity events, valid hierarchy, complete event coverage and current AWS documentation topics.');
+console.log('Demo seed-data tests passed: 461 work items, 1,844 Activity events, valid hierarchy, complete event coverage and current AWS documentation topics.');
