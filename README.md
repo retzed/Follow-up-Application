@@ -29,7 +29,6 @@ The demo username selects which teammate appears as the current user; the passwo
 - Work items, assignments, archive entries, and activity events are saved in the browser's `localStorage` for this site.
 - The demo sign-in session is stored in the current browser tab's `sessionStorage`.
 - Visitors using another browser, device, profile, or private window have a separate local workspace. The app does not synchronize demo data over the internet.
-- Use **Reset demo data** in the application to return the local workspace to its sample state. This affects the current browser only.
 
 ## What the application does
 
