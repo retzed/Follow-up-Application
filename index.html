@@ -1241,28 +1241,40 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
    localStorage.removeItem(ACTIVITY_TABLE_KEY);
   }catch(error){console.warn('Legacy Activity history migration failed; legacy data was retained.',error);}
  }
- function persistActivityEvent(raw){
-  let event=ensureActivityIndexes(raw);
-  if(!event.eventId)throw new Error('eventId is required.');
-  let key=activityEventStorageKey(event.itemId,event.eventId);
-  try{
-   const rawExisting=localStorage.getItem(key);
-   if(rawExisting!==null){
-    const existing=JSON.parse(rawExisting);
-    if(activityIdentity(existing)===activityIdentity(event))event=ensureActivityIndexes({...existing,...event,eventId:event.eventId});
-    else{
+  function activityEventIdInUse(eventId,exceptKey=''){
+   for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);if(!key||!key.startsWith(ACTIVITY_EVENT_PREFIX)||key===exceptKey)continue;
+    try{const row=JSON.parse(localStorage.getItem(key)||'null');if(row&&String(row.eventId||row.id||'')===String(eventId))return true;}catch(error){}
+   }
+   return false;
+  }
+  function persistActivityEvent(raw){
+   let event=ensureActivityIndexes(raw);
+   if(!event.eventId)throw new Error('eventId is required.');
+   let key=activityEventStorageKey(event.itemId,event.eventId);
+   try{
+    const rawExisting=localStorage.getItem(key);
+    if(rawExisting!==null){
+     const existing=JSON.parse(rawExisting);
+     if(activityIdentity(existing)===activityIdentity(event))event=ensureActivityIndexes({...existing,...event,eventId:event.eventId});
+     else{
+      const base=event.eventId;let candidate;
+      do{candidate=base+'_collision_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);key=activityEventStorageKey(event.itemId,candidate);}while(localStorage.getItem(key)!==null||activityEventIdInUse(candidate,key));
+      event=ensureActivityIndexes({...event,eventId:candidate});
+     }
+    }
+    if(activityEventIdInUse(event.eventId,key)){
      const base=event.eventId;let candidate;
-     do{candidate=base+'_collision_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);key=activityEventStorageKey(event.itemId,candidate);}while(localStorage.getItem(key)!==null);
+     do{candidate=base+'_collision_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);key=activityEventStorageKey(event.itemId,candidate);}while(localStorage.getItem(key)!==null||activityEventIdInUse(candidate,key));
      event=ensureActivityIndexes({...event,eventId:candidate});
     }
+    localStorage.setItem(key,JSON.stringify(event));
+   }catch(error){
+    if(memoryTables){const rows=memoryTables.activityEvents||(memoryTables.activityEvents=[]);const index=rows.findIndex(row=>String(row.eventId||row.id||'')===String(event.eventId));if(index<0)rows.push(event);else rows[index]=event;activityTableLoaded=true;activityTableDirty=true;}
+    else throw error;
    }
-   localStorage.setItem(key,JSON.stringify(event));
-  }catch(error){
-   if(memoryTables){const rows=memoryTables.activityEvents||(memoryTables.activityEvents=[]);const index=rows.findIndex(row=>String(row.eventId||row.id||'')===String(event.eventId));if(index<0)rows.push(event);else rows[index]=event;activityTableLoaded=true;activityTableDirty=true;}
-   else throw error;
+   return event;
   }
-  return event;
- }
  function readActivityEventsForItems(itemIds){
   migrateLegacyActivityArray();
   const wanted=(itemIds||[]).map(id=>String(id||'')).filter(Boolean);
