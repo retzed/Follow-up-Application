@@ -101,5 +101,15 @@ for (const topic of requiredTopics) {
 assert.ok(html.includes("const STORAGE_KEY = 'team-follow-up-demo-v4';"), 'The demo workspace storage namespace is versioned for the new seed.');
 assert.ok(html.includes("const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v2';"), 'Existing browser profiles receive fresh built-in work items.');
 assert.ok(html.includes("const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v2:'"), 'Existing browser profiles receive the expanded Activity fixture.');
+assert.ok(html.includes('function persistInitialActivityBatch(rawEvents){'), 'Large local Activity fixtures must use the indexed bulk-seed path.');
+const batchStart = html.indexOf('function persistInitialActivityBatch(rawEvents){');
+const batchEnd = html.indexOf('function readActivityEventsForItems(', batchStart);
+assert.ok(batchEnd > batchStart, 'The Activity bulk-seed helper must be correctly delimited.');
+assert.ok(!html.slice(batchStart, batchEnd).includes('activityEventIdInUse('), 'Bulk seeding must not rescan the entire event store for each new event.');
+const bootstrapStart = html.indexOf('async function bootstrap(fallback,onProgress)');
+const bootstrapEnd = html.indexOf('function sameRecordFields(', bootstrapStart);
+assert.ok(bootstrapEnd > bootstrapStart, 'The built-in bootstrap function must be present.');
+const builtinBootstrap = html.slice(bootstrapStart, bootstrapEnd);
+assert.ok(builtinBootstrap.indexOf('await new Promise(resolve=>') < builtinBootstrap.indexOf('writeTables(tableFromSnapshot'), 'Yield before writing the large demo fixture so loading placeholders can paint.');
 
 console.log('Demo seed-data tests passed: 461 work items, 1,844 Activity events, valid hierarchy, complete event coverage and current AWS documentation topics.');
