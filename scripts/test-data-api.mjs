@@ -61,7 +61,7 @@ assert.equal(state.activity.length, 0, 'bootstrap never fetches Activity history
 assert.ok(!(window.__TEAM_FOLLOW_UP_API_LOG || []).some(x => /\/activity/.test(x.path)), 'startup does not request Activity history');
 assert.ok(!(window.__TEAM_FOLLOW_UP_API_LOG || []).some(x => /rootParentId=/.test(x.path)), 'startup does not fetch every root hierarchy');
 const selectedRootItems = await api.queryRootItems('p-old');
-assert.deepEqual(selectedRootItems.items.map(x => x.id).sort(), ['f-direct', 'f-nested', 't-1'], 'selecting one root loads only its descendants');
+assert.deepEqual(Array.from(selectedRootItems.items, x => x.id).sort(), ['f-direct', 'f-nested', 't-1'], 'selecting one root loads only its descendants');
 
 const tableKey = 'team-follow-up-builtin-dynamodb-tables-v1';
 const tables = JSON.parse(memory.get(tableKey));
@@ -78,7 +78,7 @@ assert.equal(topLastCreated.items[0].id, 'p-new', 'last-created sorts newest to 
 const topCreated = await api.queryTopLevel({ dateMode: 'created' });
 assert.equal(topCreated.items[0].id, 'p-old', 'created sorts oldest to newest');
 const directChildren = await api.queryChildren('p-old');
-assert.deepEqual(directChildren.items.map(x => x.id).sort(), ['f-direct', 't-1']);
+assert.deepEqual(Array.from(directChildren.items, x => x.id).sort(), ['f-direct', 't-1']);
 const nestedChildren = await api.queryChildren('t-1');
 assert.equal(nestedChildren.items.length, 1);
 assert.equal(nestedChildren.items[0].id, 'f-nested');
@@ -148,7 +148,7 @@ const listedArchive = await api.listArchive({ rootParentId: 'p-delete-tree' });
 assert.equal(listedArchive.count, 3, 'Archive route lists deleted hierarchy records by root');
 await assert.rejects(() => api.restoreArchive(['f-delete-tree'], 'u2'), /Restore the parent item together/, 'a follow-up cannot be restored while its archived task is missing');
 const partialRestore = await api.restoreArchive(['p-delete-tree', 't-delete-tree'], 'u2');
-assert.deepEqual(partialRestore.restoredItems.map(x => x.id).sort(), ['p-delete-tree', 't-delete-tree'], 'parent can be restored with selected child items only');
+assert.deepEqual(Array.from(partialRestore.restoredItems, x => x.id).sort(), ['p-delete-tree', 't-delete-tree'], 'parent can be restored with selected child items only');
 assert.equal(partialRestore.activityEvents.length, 1, 'restoring multiple selected parent/child items creates one summary event');
 assert.equal(partialRestore.activityEvents[0].itemId, 'p-delete-tree', 'restore summary is anchored to the top-most selected item');
 assert.equal(partialRestore.activityEvents[0].affectedCount, 2, 'restore summary records the selected subtree size');
