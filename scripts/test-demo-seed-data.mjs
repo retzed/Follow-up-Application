@@ -98,9 +98,9 @@ for (const topic of requiredTopics) {
   assert.ok(searchableText.toLowerCase().includes(topic.toLowerCase()), 'Dataset covers documentation topic: ' + topic);
 }
 
-assert.ok(html.includes("const STORAGE_KEY = 'team-follow-up-demo-v4';"), 'The demo workspace storage namespace is versioned for the new seed.');
-assert.ok(html.includes("const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v2';"), 'Existing browser profiles receive fresh built-in work items.');
-assert.ok(html.includes("const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v2:'"), 'Existing browser profiles receive the expanded Activity fixture.');
+assert.ok(html.includes("const STORAGE_KEY = 'team-follow-up-demo-v5';"), 'The demo workspace storage namespace is versioned for the new seed.');
+assert.ok(html.includes("const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v3';"), 'Existing browser profiles receive fresh built-in work items.');
+assert.ok(html.includes("const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v3:'"), 'Existing browser profiles receive the expanded Activity fixture.');
 assert.ok(html.includes('function persistInitialActivityBatch(rawEvents){'), 'Large local Activity fixtures must use the indexed bulk-seed path.');
 const batchStart = html.indexOf('function persistInitialActivityBatch(rawEvents){');
 const batchEnd = html.indexOf('function readActivityEventsForItems(', batchStart);
