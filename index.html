@@ -1443,8 +1443,16 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
   m=clean.match(/^\/items\/([^/]+)\/activity$/);
   if(method==='GET'&&m){
    const itemId=decodeURIComponent(m[1]);const item=tables.workItems.find(x=>x.itemId===itemId);const scope=q.get('scope')||'item';let itemIds;
-   if(scope==='all'&&item&&['project','job'].includes(item.type))itemIds=allActive().filter(x=>x.rootPK===`ROOT#${itemId}`).map(x=>String(x.itemId));
-   else if(scope==='all'&&item&&item.type==='task')itemIds=[itemId,...allActive().filter(x=>String(x.parentId||'')===itemId).map(x=>String(x.itemId))];
+   if(scope==='all'&&item&&['project','job'].includes(item.type)){
+    const activeIds=allActive().filter(x=>x.rootPK===`ROOT#${itemId}`).map(x=>String(x.itemId));
+    const archivedIds=(tables.archiveItems||[]).filter(x=>String(x.archiveRootId||x.rootParentId||'')===itemId).map(x=>String(x.itemId||x.archiveId||''));
+    itemIds=[...new Set([...activeIds,...archivedIds].filter(Boolean))];
+   }
+   else if(scope==='all'&&item&&item.type==='task'){
+    const activeChildren=allActive().filter(x=>String(x.parentId||'')===itemId).map(x=>String(x.itemId));
+    const archivedChildren=(tables.archiveItems||[]).filter(x=>String(x.archiveParentId||x.parentId||'')===itemId).map(x=>String(x.itemId||x.archiveId||''));
+    itemIds=[...new Set([itemId,...activeChildren,...archivedChildren].filter(Boolean))];
+   }
    else itemIds=[itemId];
    let events=readActivityEventsForItems(itemIds);
    const search=(q.get('q')||'').toLocaleLowerCase();
