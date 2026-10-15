@@ -42,6 +42,9 @@ The app separates top-level work containers from child items.
 
 A project/job cannot be created as a child. The UI dynamically displays the applicable parent type in context and prevents invalid parent/type combinations.
 
+<img width="610" height="480" alt="Untitled Map" src="https://github.com/user-attachments/assets/a2f743cc-bfbc-444f-9fee-f5efdb8448d0" />
+
+
 Every item can hold a name, description, creator metadata, assignee, priority, status, and applicable dates. Updating fields or status should produce activity-history entries. Priority can be raised to the maximum using the important/star control. Deleted items go to the archive and may be restored when the required hierarchy is available.
 
 ## 3. Application architecture
