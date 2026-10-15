@@ -7,6 +7,20 @@ const match = html.match(/<script id="team-follow-up-data-api">([\s\S]*?)<\/scri
 assert.ok(match, 'data API adapter script exists');
 const memory = new Map();
 const warnings = [];
+const activityPrefix = 'team-follow-up-builtin-dynamodb-activity-event-v1:';
+const activityTableKey = 'team-follow-up-builtin-dynamodb-activity-table-v1';
+function storedActivityEvents(store = memory) {
+  const rows = [];
+  const legacy = store.get(activityTableKey);
+  if (legacy) { try { const parsed = JSON.parse(legacy); if (Array.isArray(parsed)) rows.push(...parsed); } catch {} }
+  for (const [key, value] of store.entries()) {
+    if (!key.startsWith(activityPrefix)) continue;
+    try { const row = JSON.parse(value); if (row && row.eventId) rows.push(row); } catch {}
+  }
+  const unique = new Map();
+  for (const row of rows) unique.set(`${row.itemId || ''}#${row.eventId || row.id || ''}`, row);
+  return [...unique.values()];
+}
 const window = { TEAM_FOLLOW_UP_CONFIG: { dataMode: 'builtin' } };
 const context = {
   window,
@@ -40,7 +54,12 @@ const children = [
 ];
 const state = await api.bootstrap({ users, parents, children, activity: [] });
 assert.equal(state.parents.length, 2, 'bootstrap returns two top-level items');
-assert.equal(state.children.length, 3, 'bootstrap returns child records');
+assert.equal(state.children.length, 0, 'bootstrap defers descendants until their parent is selected');
+assert.equal(state.activity.length, 0, 'bootstrap never fetches Activity history');
+assert.ok(!(window.__TEAM_FOLLOW_UP_API_LOG || []).some(x => /\/activity/.test(x.path)), 'startup does not request Activity history');
+assert.ok(!(window.__TEAM_FOLLOW_UP_API_LOG || []).some(x => /rootParentId=/.test(x.path)), 'startup does not fetch every root hierarchy');
+const selectedRootItems = await api.queryRootItems('p-old');
+assert.deepEqual(selectedRootItems.items.map(x => x.id).sort(), ['f-direct', 'f-nested', 't-1'], 'selecting one root loads only its descendants');
 
 const tableKey = 'team-follow-up-builtin-dynamodb-tables-v1';
 const tables = JSON.parse(memory.get(tableKey));
@@ -119,7 +138,7 @@ assert.equal(archivedFollowup.parentId, 't-delete-tree', 'archived follow-up kee
 assert.equal(archivedFollowup.archiveParentName, 'Delete tree task', 'archive captures an immediate parent-name snapshot for clear relation display');
 assert.equal(archivedFollowup.rootParentId, 'p-delete-tree', 'archived follow-up keeps its root parent relationship');
 assert.ok(archivedFollowup.archivedAt && archivedFollowup.archiveRootName === 'Delete tree project', 'archive metadata and root snapshot are retained');
-const subtreeDeleteEvents = allTablesAfterDelete.activityEvents.filter(e => e.kind === 'delete' && e.rootParentId === 'p-delete-tree');
+const subtreeDeleteEvents = storedActivityEvents().filter(e => e.kind === 'delete' && e.rootParentId === 'p-delete-tree');
 assert.equal(subtreeDeleteEvents.length, 1, 'deleting a hierarchy creates one summary event rather than one event per descendant');
 assert.equal(subtreeDeleteEvents[0].affectedCount, 3, 'delete summary records total items archived');
 assert.equal(subtreeDeleteEvents[0].affectedDescendantCount, 2, 'delete summary records descendant count');
@@ -141,7 +160,7 @@ assert.equal(followupRestore.activityEvents.length, 1, 'restoring a single item 
 allTablesAfterDelete = JSON.parse(memory.get(tableKey));
 assert.ok(!allTablesAfterDelete.archiveItems.some(x => ['p-delete-tree', 't-delete-tree', 'f-delete-tree'].includes(x.itemId)), 'restored items are removed from the active Archive list');
 assert.deepEqual(allTablesAfterDelete.workItems.map(x => x.itemId).filter(id => ['p-delete-tree', 't-delete-tree', 'f-delete-tree'].includes(id)).sort(), ['f-delete-tree', 'p-delete-tree', 't-delete-tree'], 'all restored items are active again');
-assert.ok(allTablesAfterDelete.activityEvents.some(e => e.kind === 'restore' && e.itemId === 'f-delete-tree'), 'restoration is recorded in retained activity history');
+assert.ok(storedActivityEvents().some(e => e.kind === 'restore' && e.itemId === 'f-delete-tree'), 'restoration is recorded in retained activity history');
 
 // Regression: every relevant operation must leave durable activity history on the root timeline.
 const auditRoot = { id:'p-audit-flow', type:'project', name:'Audit flow project', description:'', status:'not-started', ownerId:'u1', createdBy:'u1', updatedBy:'u1', createdAt:'2026-10-13T10:00:00.000Z', updatedAt:'2026-10-13T10:00:00.000Z' };
@@ -174,7 +193,9 @@ assert.ok(auditHistory.events.some(e=>e.id==='evt-audit-delete-child'),'older ch
 assert.ok(auditHistory.events.some(e=>e.kind==='restore'&&e.itemId===auditRoot.id),'restore event must appear in the root history');
 
 const methodCalls = window.__TEAM_FOLLOW_UP_API_LOG || [];
-assert.ok(methodCalls.some(x => x.method === 'GET' && x.path.startsWith('/bootstrap')));
+assert.ok(methodCalls.some(x => x.method === 'GET' && x.path === '/users'), 'startup loads enabled team profiles');
+assert.ok(methodCalls.some(x => x.method === 'GET' && x.path.startsWith('/items?scope=top-level')), 'startup loads top-level Projects/Jobs');
+assert.ok(!methodCalls.some(x => x.method === 'GET' && /\/activity|rootParentId=/.test(x.path)), 'startup skips Activity and all-root descendant reads');
 assert.ok(methodCalls.some(x => x.method === 'POST' && x.path === '/items'));
 assert.ok(methodCalls.some(x => x.method === 'DELETE' && x.path === '/items/p-test'));
 assert.ok(methodCalls.some(x => x.method === 'GET' && x.path.startsWith('/archive')));
