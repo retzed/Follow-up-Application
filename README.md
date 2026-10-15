@@ -2,13 +2,13 @@
 
 A bilingual (English/Arabic) team workspace for organizing projects, jobs, tasks, follow-ups, assignments, priorities, and activity history.
 
-**Demo URL: [retzed.github.io/Team_Follow-Up](https://retzed.github.io/Team_Follow-Up/)** · [Project guide](PROJECT_GUIDE.md) · [Application architecture](docs/ARCHITECTURE.md)
+**Demo URL: [retzed.github.io/Team_Follow-Up](https://retzed.github.io/Team_Follow-Up/)** · [Project guide](PROJECT_GUIDE.md) · [Application architecture](docs/ARCHITECTURE.md) · [Complete application documentation](docs/DOCUMENTATION.md)
 
 > **Demo only:** this public build uses browser-local demo sign-in and local browser storage. It has no server-side database or real authentication. Do not enter private, personal, or confidential information. Each browser profile has its own copy of the demo data.
 
 ## Try the demo
 
-1. After completing the one-time setup in [GitHub Pages publishing](PROJECT_GUIDE.md#7-github-pages-publishing), open the [demo application](https://retzed.github.io/Follow-up-Application/).
+1. Open the [hosted demo application](https://retzed.github.io/Team_Follow-Up/). If the site has not been published for this repository yet, follow the one-time [GitHub Pages setup](PROJECT_GUIDE.md#7-github-pages-publishing).
 2. Enter one of the built-in team usernames below. English and Arabic aliases are supported.
 3. Enter **any non-empty password** and sign in. The password is not checked; this is intentionally only a demonstration flow.
 4. Explore sample projects, jobs, tasks, follow-ups, assignments, activity history, search filters, and archive.
@@ -64,6 +64,12 @@ flowchart TD
 
 This repository deliberately focuses on the application rather than cloud-specific deployment infrastructure. No separate server process is required for the current demo. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the component/data flow and the boundary intended for a future interchangeable backend.
 
+## System requirements
+
+**For using the demo:** a current desktop or mobile browser with JavaScript enabled and browser storage available. No GPU, database server, cloud account, or special hardware is required. The demo is tested as a static browser application; persistent demo data requires the browser to allow site storage.
+
+**For development:** Git to clone the repository, Node.js 20 or newer for the test/build scripts, and Python 3 if you want to use Python's built-in local HTTP server. A typical modern laptop or desktop is sufficient; 2 CPU cores, 4 GB RAM, and roughly 500 MB of free disk space are practical recommendations, not strict application limits. No third-party npm packages are currently required.
+
 ## Run locally
 
 You only need a modern browser to open `index.html`. For a more representative local setup, serve the project over HTTP:
@@ -94,7 +100,8 @@ The static build is written to `dist/index.html`. No third-party package install
 ├── PROJECT_GUIDE.md           # Step-by-step user and developer guide
 ├── RELEASE_NOTES.md           # Application-focused release notes
 ├── docs/
-│   └── ARCHITECTURE.md        # UI, data model, and browser storage architecture
+│   ├── ARCHITECTURE.md        # UI, data model, and browser storage architecture
+│   └── DOCUMENTATION.md       # Full product, developer, security, and testing reference
 ├── scripts/
 │   ├── build.mjs              # Create the static demo artifact
 │   ├── check-syntax.mjs       # Parse inline JavaScript

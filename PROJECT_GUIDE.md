@@ -1,10 +1,10 @@
 # Project Guide — Team Follow-Up Application
 
-This guide explains how to access the demo, run the application, understand its architecture, work on the code, validate changes, and publish the static demo. It describes the current public project as it is today: a self-contained browser app with demo authentication and browser-local persistence.
+This guide explains how to access the demo, run the application, understand its architecture, work on the code, validate changes, and publish the static demo. It describes the current public project as it is today: a self-contained browser app with demo authentication and browser-local persistence. For the full application reference, see [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md).
 
 ## 1. Demo URL and access
 
-The target demo URL is **https://retzed.github.io/Follow-up-Application/**. It becomes available after completing the one-time GitHub Pages setup in Section 7. Until Pages is enabled, run the project locally as described in Section 5.
+The target demo URL is **https://retzed.github.io/Team_Follow-Up/**. It becomes available after completing the one-time GitHub Pages setup in Section 7. Until Pages is enabled, run the project locally as described in Section 5.
 
 The public site is for evaluation and presentation. Do not enter real personal, confidential, or company-sensitive information.
 
