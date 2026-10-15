@@ -2156,7 +2156,7 @@ const dataLoadState = {
  childrenLoaded:new Set(), activityLoaded:new Set(), rootErrors:new Map(), initialError:''
 };
 let builtinBootstrapWarning='';
-data={schema:4,users:[],parents:[],children:[],activity:[]};invalidateHierarchyIndex();lastApiSnapshot=null;
+data={schema:4,users:[],parents:[],children:[],activity:[]};lastApiSnapshot=null;
 try{
  const cached=copyWorkspace(bootstrapFallbackWorkspace);cached.children=[];cached.activity=[];
  localStorage.setItem(STORAGE_KEY,JSON.stringify(cached));
