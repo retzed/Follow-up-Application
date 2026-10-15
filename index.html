@@ -1355,6 +1355,23 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
   }
   return event;
  }
+ function snapshotFromTables(tables){
+  const active=(tables.workItems||[]).filter(x=>!x.deletedAt).map(toAppItem);
+  const parents=active.filter(x=>x.type==='project'||x.type==='job');
+  const children=active.filter(x=>x.type!=='project'&&x.type!=='job');
+  const activity=(tables.activityEvents||[]).map(toAppEvent);
+  const users=(tables.userProfiles||[]).filter(u=>u.enabled!==false).map(toAppUser);
+  return {schema:4,users,parents,children,activity};
+ }
+ function tableFromSnapshot(snapshot){
+  return {
+   schema:1,
+   workItems:[...(snapshot.parents||[]),...(snapshot.children||[])].map(ensureIndexFields),
+   activityEvents:(snapshot.activity||[]).map(ensureActivityIndexes),
+   userProfiles:(snapshot.users||[]).map(toTableUser),
+   archiveItems:[]
+  };
+ }
  function mockRoute(method,path,body){
   const url=new URL(path,'https://builtin.local/');const clean=url.pathname.replace(/\/+$/,'')||'/';const q=url.searchParams;
   const needsActivity=method!=='GET'&&(clean==='/activity'||new RegExp('^/activity/[^/]+$').test(clean));let tables=readTables(needsActivity);if(!tables)throw new Error('Built-in table store has not been initialized.');
