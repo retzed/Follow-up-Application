@@ -1355,6 +1355,22 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
   }
   return event;
  }
+ function toAppItem(record){
+  const x=clone(record)||{};x.id=String(x.id||x.itemId||'');delete x.itemId;
+  for(const k of ['listPK','updatedSort','createdSort','rootPK','rootUpdatedSort','assigneePK','assigneeUpdatedSort','assigneeCreatedSort','deletedAt'])delete x[k];
+  return x;
+ }
+ function toAppEvent(record){
+  const x=clone(record)||{};x.id=String(x.id||x.eventId||'');delete x.eventId;
+  if(!x.itemName&&x.itemNameSnapshot)x.itemName=x.itemNameSnapshot;
+  if(!x.itemType&&x.itemTypeSnapshot)x.itemType=x.itemTypeSnapshot;
+  if(!x.userId&&x.actorUserId)x.userId=x.actorUserId;
+  for(const k of ['itemNameSnapshot','itemTypeSnapshot','actorUserId','itemPK','itemSort','applicationPK','applicationSort','rootPK','rootSort','parentPK','parentSort'])delete x[k];
+  return x;
+ }
+ function toAppArchiveRecord(record){const x=toAppItem(record);x.id=String(record.archiveId||record.itemId||record.id||'');x.archiveRootId=String(record.archiveRootId||record.rootParentId||x.id);x.archiveRootName=String(record.archiveRootName||record.name||'');x.archivedAt=String(record.archivedAt||record.deletedAt||'');x.archivedBy=String(record.archivedByUserId||record.updatedByUserId||record.updatedBy||'');for(const k of ['archiveId','archivePK','archiveSort','archiveRootPK','archiveRootSort','archiveParentId','archivedByUserId','deletedAt'])delete x[k];return x;}
+ function toTableUser(user){const u=clone(user)||{};const row={userId:String(u.userId||u.id||''),displayName:String(u.displayName||u.name||''),role:String(u.role||'AWS Engineer'),enabled:u.enabled!==false};const sub=u.cognitoSub||u.sub;if(sub)row.cognitoSub=String(sub);return row;}
+ function toAppUser(user){return {id:String(user.userId||user.id||''),name:String(user.displayName||user.name||''),role:String(user.role||'AWS Engineer'),...(user.cognitoSub?{cognitoSub:user.cognitoSub}:{})};}
  function snapshotFromTables(tables){
   const active=(tables.workItems||[]).filter(x=>!x.deletedAt).map(toAppItem);
   const parents=active.filter(x=>x.type==='project'||x.type==='job');
@@ -1372,6 +1388,21 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
    archiveItems:[]
   };
  }
+ function logCall(method,path,source){try{const rows=window.__TEAM_FOLLOW_UP_API_LOG||(window.__TEAM_FOLLOW_UP_API_LOG=[]);rows.push({at:now(),method,path,adapter:source||mode});if(rows.length>300)rows.splice(0,rows.length-300);}catch(e){}}
+ function itemSort(a,b,mode,direction){const key=mode==='updated'?'updatedSort':'createdSort';const ka=a[key]||'';const kb=b[key]||'';return (ka<kb?-1:ka>kb?1:0)*(direction==='asc'?1:-1);}
+ function matchItem(x,p){
+  if(x.deletedAt)return false;
+  if(p.type&&p.type!=='all'&&x.type!==p.type)return false;
+  if(p.status&&p.status!=='all'&&p.status!=='not-completed'&&x.status!==p.status)return false;
+  if(p.status==='not-completed'&&x.status==='completed')return false;
+  if(p.priority&&p.priority!=='all'&&x.priority!==p.priority)return false;
+  if(p.query){const q=String(p.query).toLocaleLowerCase();if(!String(x.name||'').toLocaleLowerCase().includes(q)&&!String(x.description||'').toLocaleLowerCase().includes(q))return false;}
+  const dateMode=p.dateMode||'updated';const key=dateMode==='updated'?x.updatedAt:x.createdAt;
+  if(p.from&&String(key||'').slice(0,10)<p.from)return false;
+  if(p.to&&String(key||'').slice(0,10)>p.to)return false;
+  return true;
+ }
+ function sortItems(rows,p){const dir=p.direction||(p.dateMode==='created-asc'?'asc':'desc');const mode=String(p.dateMode||'updated')==='updated'?'updated':'created';return rows.sort((a,b)=>itemSort(a,b,mode,dir));}
  function mockRoute(method,path,body){
   const url=new URL(path,'https://builtin.local/');const clean=url.pathname.replace(/\/+$/,'')||'/';const q=url.searchParams;
   const needsActivity=method!=='GET'&&(clean==='/activity'||new RegExp('^/activity/[^/]+$').test(clean));let tables=readTables(needsActivity);if(!tables)throw new Error('Built-in table store has not been initialized.');
