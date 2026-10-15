@@ -2476,6 +2476,80 @@ function seedData(){
      step('Sign off only after evidence and open gaps are reviewed','Summarize passing acceptance checks, outstanding work, live resource status, cost assumptions, deployment commit and recovery limitations; obtain a deliberate decision before inviting all users to rely on the system.','u1','not-started')
     ])
    ]
+  },
+  {
+   id:'p15',name:'15 · API Endpoint Reference, Query Parameters & Response Contracts',
+   description:'API reference appendix for the current AWS handler and frontend data adapter. Match exact HTTP paths, methods, query names, response shapes and status-code expectations before changing the client/server contract.',
+   ownerId:'u3',status:'not-started',due:38,
+   tasks:[
+    task('15.1 Bootstrap and team profile read endpoints','Document the startup read paths separately from child/history reads so the first page can render before the full hierarchy is loaded.','u3','high','not-started',[
+     step('GET /users returns enabled mapped profiles','The response contains users with stable id, display name and role label. Cognito subject values are never returned to the browser as a trusted identity substitute.','u3','not-started'),
+     step('GET /items?scope=top-level returns Projects and Jobs','Use the top-level workspace access pattern. It should not include Tasks or Follow-ups and should honor supported sorting/filter pagination values.','u3','not-started'),
+     step('Keep the API handler and UI adapter response shapes aligned','Normalize backend itemId to UI id and actorUserId to userId where appropriate. Use the established response fields rather than silently depending on undocumented aliases.','u3','not-started'),
+     step('Treat bootstrap/profile failures as recoverable errors','Show an accessible startup error with Retry when profiles or roots cannot load. Do not substitute the browser demo data in the AWS-only build.','u5','not-started')
+    ]),
+    task('15.2 Root, child and assigned-item query endpoints','Use distinct query paths for root-scoped hierarchy, direct parent children and the current user’s assignment list. Validate the response ordering and relationship fields.','u3','high','not-started',[
+     step('Query one root with rootParentId','GET /items?rootParentId=ROOT_ID is the root-hierarchy access pattern used by the frontend adapter. Filter out the root itself from child rows and retain all valid descendants.','u3','not-started'),
+     step('GET /items/ROOT_ID/children reads direct children','A parent children endpoint returns rows under the exact parent, not every child in the root. Use it for direct hierarchy/list behavior where that API is the expected contract.','u3','not-started'),
+     step('GET /items/assigned-to-me resolves the authenticated user','The handler derives the target user from the enabled Cognito profile, not from an arbitrary client-supplied user ID. Filters and sort direction must align with AssignedToIndex.','u3','not-started'),
+     step('Verify query parameter names and supported values','Document dateMode, direction, type, status, priority, q, from/to, limit and offset where applicable. Reject or bound invalid page sizes and ensure nextOffset moves forward.','u3','not-started')
+    ]),
+    task('15.3 Item-specific and root-wide Activity endpoints','The item-history popup controls the read boundary. Keep the root/child scope semantics exact and preserve history for archived descendants.','u3','urgent','not-started',[
+     step('GET /items/ITEM_ID/activity?scope=item reads one item','This scope returns only events whose itemId matches the selected item. It is the correct scope for a Follow-up history popup, which has no descendant selector.','u3','not-started'),
+     step('GET /items/ITEM_ID/activity?scope=all resolves relevant descendants','For a Project/Job include root and descendants; for a Task include that Task plus its direct Follow-ups. Do not silently turn every type into global history.','u3','not-started'),
+     step('Keep activityLoaded keyed by item ID and scope','The local readiness key must identify the selected item and scope. applicationHistoryReady may inform the dashboard cache but must not hide an unopened item popup’s loading indicator.','u3','not-started'),
+     step('Use archived snapshots to include old child events','A root/Task history request may consult the Archive table on demand to find archived descendants, then query Activity partitions for their IDs. Do not perform this work during startup.','u3','not-started')
+    ]),
+    task('15.4 Global Activity, Archive listing and restore endpoints','Document expensive global reads and destructive endpoints separately, including their auth requirements and retry expectations.','u3','high','not-started',[
+     step('GET /activity?scope=application loads global Activity','The handler scans the Activity table because no Activity GSI exists. Call only when the application-wide Activity popup opens, and return normalized events newest first.','u3','not-started'),
+     step('GET /archive queries archived snapshots','Use GSI_ArchiveIndex and supported search/type/root filters. The response includes item snapshots and total/continuation metadata for the Archive UI.','u3','not-started'),
+     step('POST /archive/restore accepts selected item IDs','The handler verifies parent availability and domain rules before restoring. Confirm the response returns restored IDs/items and committed restore Activity events for immediate UI merging.','u3','not-started'),
+     step('Reject direct Activity table mutations','Activity is append-only and must be written atomically with item operations. Direct POST /activity or patch/delete attempts should be rejected rather than allowing audit history to be rewritten.','u3','not-started')
+    ]),
+    task('15.5 Document HTTP status codes and error recovery','The UI should show the meaning of a failure and an appropriate retry/sign-in action without exposing raw backend internals.','u3','high','not-started',[
+     step('Handle 401 as authentication failure','A missing, invalid or expired token requires sign-in/re-authentication. Do not retry a mutating request indefinitely with the same expired token.','u4','not-started'),
+     step('Handle 403 as identity/profile authorization failure','A verified subject that has no unique enabled Users profile is denied. Fix trusted profile mapping rather than changing the actor ID in browser input.','u4','not-started'),
+     step('Handle 400, 404 and 409 as distinct outcomes','400 indicates invalid input/query, 404 indicates an unavailable item/route and 409 indicates a concurrency or hierarchy conflict where defined. Display sanitized server messages and safe next actions.','u5','not-started'),
+     step('Handle 429/5xx/network failures without lying about success','Provisioned DynamoDB capacity may throttle, and upstream errors can interrupt a mutation. Preserve retry context, reconcile state before repeating non-idempotent writes, and never add fake success events.','u3','not-started')
+    ])
+   ]
+  },
+  {
+   id:'p16',name:'16 · Physical Data Dictionary, Runtime Variables & Release Checklist',
+   description:'Reference appendix for the exact physical table fields, public API/runtime configuration, deployment commands and final cross-service verification points that bind the documented architecture together.',
+   ownerId:'u6',status:'not-started',due:40,
+   tasks:[
+    task('16.1 Maintain the Items field dictionary','Keep public business fields and server-managed index attributes aligned with index_work_item and validate_item in the Lambda handler.','u6','high','not-started',[
+     step('Document core work-item fields','type, name, description, status, priority, parentId, rootParentId, ownerId, dueDate and version describe the item. Project/Job records are roots; child relationships use direct parent and root IDs.','u3','not-started'),
+     step('Document creation and update audit fields','createdByUserId, createdAt, updatedByUserId and updatedAt are server controlled. UI aliases createdBy/updatedBy are normalized by the API adapter and should never override trusted actor identity.','u3','not-started'),
+     step('Document all three Items index materializations','workspaceKey=WORKSPACE applies only to top-level Projects/Jobs; assignedTo derives from a validated ownerId; parentId/createdAt support child listings. Keep GSI names and key order exact.','u6','not-started'),
+     step('Remove obsolete index fields from new schema plans','The deployed contract uses ParentIdIndex, AssignedToIndex and WorkspaceIndex. Do not reintroduce former listPK/updatedSort/rootPK/assigneePK-style schemas from earlier prototypes without a reviewed migration.','u6','not-started')
+    ]),
+    task('16.2 Maintain the Activity event field dictionary','Activity is a separate append-only physical table, and the frontend API maps DynamoDB attributes to display-friendly names.','u3','high','not-started',[
+     step('Document eventId and the composite primary key','The physical key is itemId (partition) and activityKey (sort). activityKey is the UTC timestamp plus # plus unique eventId. eventId itself is a regular attribute, not the table primary key.','u3','not-started'),
+     step('Document actor, event time and action fields','actorUserId, at, action, summary, kind and eventId identify who did what and when. The UI can display actorUserId as userId and localizes known action labels without translating entered item content.','u3','not-started'),
+     step('Document root and ancestry snapshots','itemNameSnapshot/itemTypeSnapshot preserve the changed item label; rootParentId/rootParentName/rootParentType and parentId/ancestorIds provide the context used by history search and grouping.','u3','not-started'),
+     step('Document optional bulk-operation metadata','bulkOperation, affectedCount and affectedDescendantCount support one delete/archive summary event for a subtree. Keep older child events and restore events; never rewrite prior audit rows.','u3','not-started')
+    ]),
+    task('16.3 Maintain the Users and Archive field dictionaries','These compact identity/archive tables have different purposes and different index contracts; do not merge them into the Items schema accidentally.','u6','high','not-started',[
+     step('Document the Users primary key and fields','userId is the String partition key. displayName, role, enabled and cognitoSub map the trusted user profile. There is no Users GSI, so identity resolution scans this deliberately small six-member table.','u4','not-started'),
+     step('Document Archive identity and relationship fields','archiveId is the String partition key. Archive snapshots retain itemId, parentId/rootParentId, content, status, priority, owner and timestamps plus archiveRootId/name/type, archiveParentId/name, archivedAt and archivedByUserId.','u6','not-started'),
+     step('Document both Archive GSIs exactly','GSI_ArchiveIndex uses archivePK/archiveSort; GSI_ArchiveRoot uses archiveRootPK/archiveRootSort. Both are projection ALL at 1 RCU and 1 WCU in the target schema.','u6','not-started'),
+     step('Keep Activity external to archived item snapshots','Archive stores the deleted item state, not a destructive copy of all historical events. The Activity table retains event rows keyed by itemId/activityKey to preserve the audit timeline.','u3','not-started')
+    ]),
+    task('16.4 Verify runtime values and IAM resource references','The build variables and Lambda environment are configuration contracts. Update them together when resource names or generated identifiers change.', 'u5','high','not-started',[
+     step('Verify the four Amplify public variables','TEAM_FOLLOW_UP_COGNITO_USER_POOL_ID, TEAM_FOLLOW_UP_COGNITO_CLIENT_ID, TEAM_FOLLOW_UP_API_BASE_URL and TEAM_FOLLOW_UP_COGNITO_TEAM_USER_ATTRIBUTE=custom:teamUserId must match the live environment.','u5','not-started'),
+     step('Verify the four Lambda table variables','ITEMS_TABLE, ACTIVITY_TABLE, USERS_TABLE and ARCHIVE_TABLE must point to the exact DynamoDB physical table names; LOG_LEVEL=INFO is the documented default.','u3','not-started'),
+     step('Check IAM table and index ARNs','The execution role must cover table-level and GSI-level resources for the required operations, in the correct Region/account. Avoid global DynamoDB permissions and avoid Cognito admin access from the app role.','u2','not-started'),
+     step('Verify generated URLs, Region and branch as a set','The Cognito issuer, API Gateway audience, API base URL, Amplify origin and allowed CORS origin must correspond to the same deployment environment and branch.','u4','not-started')
+    ]),
+    task('16.5 Execute the final configuration and release checklist','Do not assume a manually created resource matches code until settings, build output and smoke tests have been verified against the current implementation.', 'u1','high','not-started',[
+     step('Run frontend tests and the production build','Run npm test and npm run build from the AWS repository. Confirm no local-only data adapter or fake authentication is bundled into the AWS artifact.','u5','not-started'),
+     step('Run Python and infrastructure-contract tests','Run python -m unittest discover -s backend/tests -v and python scripts/test-infrastructure.py. Resolve schema/handler/policy mismatches before publishing a change.','u3','not-started'),
+     step('Check the actual deployment checklist in order','Verify Cognito, four tables/five GSIs, budget, team/profile mappings, Amplify hosting, Lambda role/package, API authorizer/CORS/access logs, environment variables and CloudWatch dashboard/alarms.','u1','not-started'),
+     step('Keep the implementation snapshot factual and dated','As-of 15 October 2026 the record reported Cognito pool/client, four tables and budget created; team accounts/profile mappings, Amplify, API Gateway/Lambda and CloudWatch resources were pending. Verify the live account before treating that historic snapshot as current.','u1','not-started')
+    ])
+   ]
   }
  ];
  const parents=[];
@@ -2545,7 +2619,7 @@ function seedData(){
  const jobCreated=new Date(ago(25,24));
  const jobUpdated=new Date(ago(0,38));
  const job={
-  id:'p15',type:'job',name:'Optional · Full-Stack SAM / CloudFormation Automation (Isolated Environment)',
+  id:'p17',type:'job',name:'Optional · Full-Stack SAM / CloudFormation Automation (Isolated Environment)',
   description:'This is the optional automation branch, not the primary console-first deployment. The template creates an entirely new stack from scratch; it does not adopt the existing console-created Cognito pool, DynamoDB tables or budget. Use a clean account or a distinct prefix such as TeamFollowUpAuto, review every changeset, and understand that DynamoDB Retain policies can leave tables behind after stack deletion.',
   status:'not-started',ownerId:'u2',dueDate:dateKey(ago(-42)),
   createdAt:jobCreated.toISOString(),createdBy:'u2',updatedAt:jobUpdated.toISOString(),updatedBy:'u2'
