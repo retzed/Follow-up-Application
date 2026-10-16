@@ -1187,9 +1187,9 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  'use strict';
  const cfg=window.TEAM_FOLLOW_UP_CONFIG||{};
  const mode=String(cfg.dataMode||'builtin').toLowerCase();
- const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v3';
- const ACTIVITY_TABLE_KEY='team-follow-up-builtin-dynamodb-activity-table-v3';
- const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v3:';
+ const TABLES_KEY='team-follow-up-builtin-dynamodb-tables-v4';
+ const ACTIVITY_TABLE_KEY='team-follow-up-builtin-dynamodb-activity-table-v4';
+ const ACTIVITY_EVENT_PREFIX='team-follow-up-builtin-dynamodb-activity-event-v4:';
  const names=Object.freeze({workItems:'TeamFollowUp-WorkItems',activity:'TeamFollowUp-ActivityEvents',users:'TeamFollowUp-UserProfiles',archive:'TeamFollowUp-Archive'});
  let memoryTables=null;let tableStorageSaveTimer=0;
  const clone=value=>JSON.parse(JSON.stringify(value??null));
@@ -1940,7 +1940,7 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
 (async () => {
 'use strict';
 try {
-const STORAGE_KEY = 'team-follow-up-demo-v5';
+const STORAGE_KEY = 'team-follow-up-demo-v6';
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 /* Central HTML-escaping boundary. Escape untrusted work-item, user, and API values before interpolating them into HTML; use textContent when markup is unnecessary. */
@@ -2611,6 +2611,10 @@ function seedData(){
  const interpolate=(start,end,fraction)=>new Date(start.getTime()+(end.getTime()-start.getTime())*fraction).toISOString();
  const statuses=['not-started','in-progress','on-hold','completed'];
  const priorities=['low','medium','high','urgent'];
+ // Stable pseudo-random fixture variation keeps examples repeatable for tests while
+ // ensuring every chapter has a different workload and completion distribution.
+ const fixtureRoll=seed=>{let x=(Number(seed)|0)+0x6d2b79f5;x=Math.imul(x^(x>>>15),x|1);x^=x+Math.imul(x^(x>>>7),x|61);return ((x^(x>>>14))>>>0)/4294967296;};
+ const fixtureStatus=seed=>statuses[Math.floor(fixtureRoll(seed)*statuses.length)];
  let taskNumber=0;
  for(let pi=0;pi<chapters.length;pi++){
   const spec=chapters[pi];
@@ -2623,25 +2627,27 @@ function seedData(){
    updatedAt:rootUpdated.toISOString(),updatedBy:spec.ownerId
   };
   parents.push(root);all.push(root);
-  for(let ti=0;ti<spec.tasks.length;ti++){
+  const taskLimit=Math.min(spec.tasks.length,3+Math.floor(fixtureRoll(pi*131+9)*3));
+  for(let ti=0;ti<taskLimit;ti++){
    const ts=spec.tasks[ti];taskNumber++;
    const taskCreated=new Date(interpolate(rootCreated,nowDate,0.18+(ti+1)/(spec.tasks.length+2)*0.48));
    const taskUpdated=new Date(interpolate(taskCreated,nowDate,0.76+(ti%3)*0.035));
    const taskItem={
     id:'t'+taskNumber,parentId:root.id,rootParentId:root.id,type:'task',
-    name:ts.name,description:ts.description,status:ts.status,priority:ts.priority,ownerId:ts.ownerId,
+    name:ts.name,description:ts.description,status:fixtureStatus(pi*977+ti*37+5),priority:ts.priority,ownerId:ts.ownerId,
     dueDate:dateKey(ago(-(Math.max(1,spec.due-ti-1)))),
     createdAt:taskCreated.toISOString(),createdBy:memberIdAt(pi*3+ti+1),
     updatedAt:taskUpdated.toISOString(),updatedBy:ts.ownerId
    };
    children.push(taskItem);all.push(taskItem);
-   for(let si=0;si<ts.steps.length;si++){
+   const stepLimit=Math.min(ts.steps.length,2+Math.floor(fixtureRoll(pi*1009+ti*71+23)*3));
+   for(let si=0;si<stepLimit;si++){
     const st=ts.steps[si];
     const followCreated=new Date(interpolate(taskCreated,nowDate,0.24+(si+1)/(ts.steps.length+2)*0.46));
     const followUpdated=new Date(interpolate(followCreated,nowDate,0.72+(si%3)*0.04));
     const follow={
      id:'f'+taskNumber+'_'+(si+1),parentId:taskItem.id,rootParentId:root.id,type:'followup',
-     name:st.name,description:st.description,status:st.status||statuses[(taskNumber+si)%statuses.length],
+     name:st.name,description:st.description,status:fixtureStatus(pi*4013+ti*131+si*17+29),
      priority:priorities[(taskNumber+si)%priorities.length],ownerId:st.ownerId||memberIdAt(taskNumber+si),
      dueDate:dateKey(ago(-(Math.max(1,spec.due+si-ti)))),
      createdAt:followCreated.toISOString(),createdBy:memberIdAt(pi*7+ti*3+si+2),
@@ -2651,16 +2657,19 @@ function seedData(){
    }
   }
   const direct=[
-   step('Checkpoint · capture the result for this AWS chapter','Record the exact console setting, resource name/ID, source commit or test result that proves this chapter was completed. Keep the record factual and never include credentials, raw tokens or private notification details.',spec.ownerId,spec.status==='completed'?'completed':'not-started'),
-   step('Checkpoint · verify dependencies before proceeding','Confirm the preceding resource and configuration are working, update the remaining-work note, and do not mark this chapter complete merely because a build or console save succeeded.',spec.ownerId,spec.status==='completed'?'completed':'not-started')
+   step('Checkpoint · capture the result for this AWS chapter','Record the exact console setting, resource name/ID, source commit or test result that proves this chapter was completed. Keep the record factual and never include credentials, raw tokens or private notification details.',spec.ownerId,'not-started'),
+   step('Checkpoint · verify dependencies before proceeding','Confirm the preceding resource and configuration are working, update the remaining-work note, and do not mark this chapter complete merely because a build or console save succeeded.',spec.ownerId,'not-started'),
+   step('Checkpoint · record validation evidence','Save the relevant passing regression command, build result, CloudWatch signal or console evidence, and note which account, region and commit were actually checked.',spec.ownerId,'not-started'),
+   step('Checkpoint · identify the next owner and blocker','Write the next required action, accountable teammate, dependency and concrete acceptance condition so the handover remains actionable.',spec.ownerId,'not-started')
   ];
-  for(let di=0;di<direct.length;di++){
+  const directLimit=1+Math.floor(fixtureRoll(pi*2003+59)*direct.length);
+  for(let di=0;di<directLimit;di++){
    const st=direct[di];
    const directCreated=new Date(interpolate(rootCreated,nowDate,0.68+di*0.08));
    const directUpdated=new Date(interpolate(directCreated,nowDate,0.76));
    const directItem={
     id:'fp'+(pi+1)+'_'+(di+1),parentId:root.id,rootParentId:root.id,type:'followup',
-    name:st.name,description:st.description,status:st.status,priority:di===0?'medium':'high',ownerId:st.ownerId,
+    name:st.name,description:st.description,status:fixtureStatus(pi*20011+di*61+17),priority:di%2===0?'medium':'high',ownerId:st.ownerId,
     dueDate:dateKey(ago(-(spec.due+2+di))),
     createdAt:directCreated.toISOString(),createdBy:memberIdAt(pi+di+2),
     updatedAt:directUpdated.toISOString(),updatedBy:st.ownerId
