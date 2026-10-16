@@ -10,6 +10,16 @@
 - Automated regression tests for JavaScript syntax, local data behavior, activity history, archive/restore, search, language rendering, and UI refinements.
 - GitHub Actions workflow that tests, builds, and publishes the static demo with GitHub Pages.
 
+## 16 October 2026 — Frontend responsiveness and reliability
+
+- Prevented modal clicks from reaching the outer workspace delegate and dispatching the same action a second time.
+- Replaced recursive descendant collection with an iterative, cycle-safe traversal and added early-exit checks for parent-type validation.
+- Removed unnecessary full-root Activity lookups from child timestamp comparisons by using the existing per-item Activity index.
+- Added regression coverage for modal event propagation, cyclic/deep hierarchies, selected child sort modes, and Activity timestamp lookup behavior.
+- These changes affect the browser UI/runtime only. They do not add a remote API, change the demo storage model, or change the GitHub Pages artifact/deployment contract.
+
+Validation: `npm test` and `npm run build`; deployment runs through [the Pages workflow](.github/workflows/pages.yml).
+
 ## Demo limitations
 
 - Username-based demo sign-in accepts any non-empty password and is not real authentication.
