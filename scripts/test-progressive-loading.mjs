@@ -59,8 +59,8 @@ check(html.includes('async function refreshApplicationHistory('),
   'The application-wide history loader must remain available for popup open and retry.');
 check(html.includes("ev.target.id==='historyScopeFilter'") && html.includes('void refreshActivityFor(itemId,scope)'),
   'Changing item-history scope inside the popup must fetch the newly selected scope.');
-check(html.includes('function rootActivityReady(') && html.includes('||applicationHistoryReady'),
-  'Activity loaded by the application-wide popup should be reusable by the already-open dashboard.');
+check(html.includes('function rootActivityReady(') && !html.slice(html.indexOf('function rootActivityReady('),html.indexOf('function historyPopupReady(')).includes('applicationHistoryReady'),
+  'The Activity tab must reflect the selected root-specific readiness instead of the application-wide flag.');
 check(html.includes("activityNotLoaded:'Open Activity History to load events.'") &&
       html.includes("activityNotLoaded:'افتح سجل النشاط لتحميل الأحداث.'"),
   'The dashboard Activity tab must show a translated unloaded state instead of an indefinite spinner.');
