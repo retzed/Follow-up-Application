@@ -170,6 +170,16 @@ JavaScript functions use descriptive camelCase names; persisted item/status iden
 
 The one-file presentation source is a deliberate static-distribution choice, but its large size is a maintainability trade-off. Future extraction into multiple JavaScript/CSS modules should be staged and should preserve script order, authentication gating, build-time configuration replacement, selectors, and regression coverage.
 
+### Modal actions, hierarchy traversal, and Activity-index behavior
+
+The modal container is inside the main application DOM tree. Its delegated click handler stops propagation before processing `data-action` controls, and the outer workspace delegate ignores clicks whose target is inside the modal root. Keep this single-owner event model intact when adding modal actions; otherwise one click could dispatch twice, especially if the first handler replaces the dialog DOM.
+
+Hierarchy lookups are built through an indexed parent/child map. Full descendant collection is iterative and keeps a visited set, so deeply nested or cyclic input cannot recurse indefinitely. Type selection should use direct-child lookups when that matches the validation rule rather than enumerating every descendant during modal rendering.
+
+The Activity index groups normalized events by both item and root. Child sorting reads the child's indexed timeline, instead of repeatedly scanning the entire root timeline during a comparator call. Root history remains scoped to its root as intended.
+
+These rules are covered by `scripts/test-progressive-loading.mjs` and `scripts/test-child-search-arabic-activity.mjs`. When changing these paths, run `npm test` and `npm run build`; the GitHub Pages workflow publishes only after the test/build job succeeds. These optimizations do not alter the demo's browser-local persistence or turn it into a shared backend.
+
 ## 7. Data access and storage model
 
 The built-in adapter maintains four logical collections:
