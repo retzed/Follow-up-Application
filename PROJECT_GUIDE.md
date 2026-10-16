@@ -172,7 +172,7 @@ For large changes to the one-file application, keep modifications targeted and t
 
 Modal controls live inside the workspace DOM, so their click handler must stop propagation before processing an action. Do not allow a modal action to bubble into the workspace's delegated handler; otherwise a create, edit, close, delete, or restore action could run twice.
 
-Keep hierarchy queries index-backed and use iterative, cycle-safe traversal for whole-subtree operations. Dialogs should use direct-child checks when direct relationships are sufficient; avoid walking an entire subtree to populate a simple selector. For date sorting, use the indexed per-item Activity entries instead of searching a Project/Job timeline for each comparator call.
+Keep hierarchy queries index-backed and keep the shared `allDescendants()` helper iterative and cycle-safe. Separate hierarchy renderers must maintain their own visited-ID guards and avoid unbounded recursion. Dialogs should use direct-child checks when direct relationships are sufficient; avoid walking an entire subtree to populate a simple selector. For date sorting, use the indexed per-item Activity entries instead of searching a Project/Job timeline for each comparator call.
 
 The existing regression coverage checks those constraints, including synthetic 15,000-level and cyclic hierarchies. After changing a modal, hierarchy rule, or sort/filter implementation, run:
 
