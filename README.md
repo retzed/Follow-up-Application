@@ -71,7 +71,7 @@ This repository deliberately focuses on the application rather than cloud-specif
 The interface uses revisioned in-memory indexes for item lookup, parent/child relationships, and Activity lookup. This keeps repeated rendering and sorting from rebuilding or scanning unrelated records unnecessarily.
 
 - Opening **New Project/Job**, **New Child Item**, or **Edit** builds the dialog from the relevant item and its direct relationships. The New Project/Job form does not walk an unrelated hierarchy just to populate its type selector.
-- Descendant traversal is iterative and cycle-safe, so unexpectedly deep or malformed local demo hierarchies do not cause recursive call-stack overflow.
+- The shared `allDescendants()` helper used by subtree validation/deletion is iterative and cycle-safe, so those operations do not depend on recursive call-stack depth. Other hierarchy renderers must keep their own visited-ID guards.
 - Modal actions are handled by the modal event handler only; modal clicks are stopped before they can bubble into the workspace's delegated-action handler and dispatch a second action.
 - Child item ordering uses the selected date mode and pre-indexed per-item Activity events; it does not repeatedly scan the entire Project/Job Activity timeline for every sort comparison.
 - Loading remains local in the demo adapter. The above indexing and click-handling safeguards are shared frontend behavior, not a separate backend or deployment requirement.
