@@ -32,8 +32,8 @@ const editPopupStart = html.indexOf('function openEdit(', appPopupStart);
 check(itemPopupStart >= 0 && appPopupStart > itemPopupStart, 'The item and application-wide history popup openers must exist.');
 const itemPopup = html.slice(itemPopupStart, appPopupStart);
 const appPopup = html.slice(appPopupStart, editPopupStart);
-check(itemPopup.includes('renderModal();void refreshActivityFor(itemId,historyScope)'),
-  'An item history request must start only after its history popup has opened.');
+check(itemPopup.includes('renderModal();if(!historyPopupReady') && itemPopup.includes('ensureActivityFromRootCache(itemId)'),
+  'Child history popups must use the already-loaded parent Activity cache and only load the root scope when needed.');
 check(appPopup.includes('renderModal();void refreshApplicationHistory()'),
   'Application-wide Activity must be requested only when its popup opens.');
 check(!appPopup.includes('refreshActivityFor('), 'The application-wide popup opener must not trigger unrelated item history.');
@@ -89,7 +89,9 @@ check(historyBranchStart>=0&&historyBranchEnd>historyBranchStart,'Item and globa
 const itemHistoryMarkup=html.slice(historyBranchStart,historyBranchEnd);
 check(itemHistoryMarkup.includes('const historyReady=historyPopupReady(m.itemId,historyScope);')&&itemHistoryMarkup.includes('let events=historyReady?activitiesFor(m.itemId,historyScope):[]'),'Item history must render its loader before building events and wait for its exact item/scope response.');
 const globalHistoryMarkup=html.slice(historyBranchEnd,html.indexOf("} else if(m.kind==='archive')",historyBranchEnd));
-check(globalHistoryMarkup.includes('let events=pending?[]:')&&globalHistoryMarkup.includes('const visibleEvents=events.slice(0,visibleLimit);'),'Global history must avoid processing cached rows while pending and limit synchronous DOM generation.');
+check(globalHistoryMarkup.includes('let events=applicationHistoryEvents.slice();')&&globalHistoryMarkup.includes('const visibleEvents=events;'),'Global history must render only the already-loaded event pages.');
+check(globalHistoryMarkup.includes('application-history-scroll')&&html.includes('loadMoreApplicationHistory')&&html.includes("data-action=\"history-load-more\""),'Global history must load the next page at scroll end, with a button fallback.');
+check(html.includes("queryGlobalActivity({limit:APPLICATION_HISTORY_PAGE_SIZE,offset:Number(offset)||0})")&&html.includes('function loadRemainingApplicationHistoryForSearch()'),'Global history search must filter current pages and finish loading the remaining pages with a loading indicator.');
 check(globalHistoryMarkup.includes('data-action="history-load-more"')&&html.includes("case 'history-load-more':"),'Global history must expose incremental rendering for additional events.');
 check(html.includes('.data-loading-state.compact { justify-content:center;')&&html.includes('.history-card-list > .data-loading-state'),'Loading indicators in popup/card areas must be centered.');
 
@@ -98,7 +100,10 @@ check(html.includes("API_CACHE_PREFIX='team-follow-up-api-cache-v2:'") && html.i
 check(html.includes("requestCachedGet('/users','team-users')") && html.includes("requestCachedGet('/items?scope=top-level&dateMode=updated&direction=desc','top-level-items')"), 'Startup must validate persisted profiles and top-level data.');
 check(html.includes("requestCachedGet(path,`activity:${String(itemId)}:${scope}:") || html.includes("requestCachedGet(path,'activity:'+String(itemId)+':'+scope+':')"), 'Item history must be conditionally revalidated from its local disk cache.');
 check(html.includes("requestCachedGet('/activity?scope=application','activity:application')"), 'Application-wide history must be conditionally revalidated from its local disk cache.');
-check(html.includes("void refreshActivityFor(id,'all')") && html.includes("void refreshActivityFor(itemId,expandedItem.type==='followup'?'item':'all')"), 'Selecting a parent and expanding a child must preload the corresponding Activity history.');
+check(html.includes("void refreshActivityFor(id,'all')") && html.includes("void ensureActivityFromRootCache(itemId)"), 'Selecting a parent and expanding a child must use the root Activity cache.');
+check(html.includes('function historyRootIdFor(itemId)')&&html.includes('dataLoadState.activityLoaded.has(`${rootId}:all`)'),'Cached root history must satisfy child popup readiness without another API request.');
+check(html.includes("scope==='all'&&String(selected.id)===String(itemId)"),'When root Activity arrives, rerender the selected detail so the Activity-tab event count updates immediately.');
+check(html.includes('data-filter="urgent"')&&html.includes("ui.childPriority==='urgent'"),'A Job must show an Urgent metric that applies the priority filter instead of Tasks.');
 check(html.includes("parent.type==='project'?\`<button") && html.includes('data-filter="tasks"'), 'The Tasks metric is rendered only for Projects, not Jobs.');
 
 console.log('Progressive-loading tests passed: lean bootstrap, selected-root child hydration, popup-only activity reads, retry safety, accessible spinners, archive pagination, and mobile history controls.');
