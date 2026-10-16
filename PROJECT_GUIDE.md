@@ -168,6 +168,19 @@ If the build succeeds but deployment reports that Pages is not enabled, recheck 
 
 For large changes to the one-file application, keep modifications targeted and test the affected UI path in a normal browser as well as running the automated suite.
 
+### Responsiveness and event-handling rules
+
+Modal controls live inside the workspace DOM, so their click handler must stop propagation before processing an action. Do not allow a modal action to bubble into the workspace's delegated handler; otherwise a create, edit, close, delete, or restore action could run twice.
+
+Keep hierarchy queries index-backed and use iterative, cycle-safe traversal for whole-subtree operations. Dialogs should use direct-child checks when direct relationships are sufficient; avoid walking an entire subtree to populate a simple selector. For date sorting, use the indexed per-item Activity entries instead of searching a Project/Job timeline for each comparator call.
+
+The existing regression coverage checks those constraints, including synthetic 15,000-level and cyclic hierarchies. After changing a modal, hierarchy rule, or sort/filter implementation, run:
+
+```bash
+npm test
+npm run build
+```
+
 ## 9. Data model concepts
 
 The local adapter maintains four logical collections:
