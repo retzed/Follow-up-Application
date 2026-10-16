@@ -66,6 +66,18 @@ flowchart TD
 
 This repository deliberately focuses on the application rather than cloud-specific deployment infrastructure. No separate server process is required for the current demo. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the component/data flow and the boundary intended for a future interchangeable backend.
 
+## Loading, modal actions, and responsiveness
+
+The interface uses revisioned in-memory indexes for item lookup, parent/child relationships, and Activity lookup. This keeps repeated rendering and sorting from rebuilding or scanning unrelated records unnecessarily.
+
+- Opening **New Project/Job**, **New Child Item**, or **Edit** builds the dialog from the relevant item and its direct relationships. The New Project/Job form does not walk an unrelated hierarchy just to populate its type selector.
+- Descendant traversal is iterative and cycle-safe, so unexpectedly deep or malformed local demo hierarchies do not cause recursive call-stack overflow.
+- Modal actions are handled by the modal event handler only; modal clicks are stopped before they can bubble into the workspace's delegated-action handler and dispatch a second action.
+- Child item ordering uses the selected date mode and pre-indexed per-item Activity events; it does not repeatedly scan the entire Project/Job Activity timeline for every sort comparison.
+- Loading remains local in the demo adapter. The above indexing and click-handling safeguards are shared frontend behavior, not a separate backend or deployment requirement.
+
+The regression suite includes checks for modal click propagation, deep/cyclic hierarchy traversal, date sorting, Activity merge integrity, and UI structure. Run `npm test` and `npm run build` before publishing a frontend change.
+
 ## System requirements
 
 **For using the demo:** a current desktop or mobile browser with JavaScript enabled and browser storage available. No GPU, database server, cloud account, or special hardware is required. The demo is tested as a static browser application; persistent demo data requires the browser to allow site storage.
