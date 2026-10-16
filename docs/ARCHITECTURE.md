@@ -95,7 +95,7 @@ The `esc()` helper is the central output-encoding boundary for text interpolated
 
 The rendered workspace and its modal host are nested in the same DOM subtree. The modal click delegate therefore owns modal actions and stops propagation before handling them; the outer workspace handler also ignores modal descendants as a defensive boundary. This avoids duplicate dispatch when the dialog closes or replaces its DOM during the event.
 
-The hierarchy index maps item IDs and parent IDs to records/children. Whole-subtree operations use an iterative traversal with a visited-ID set rather than unbounded JavaScript recursion. Modal type selectors use direct-child checks whenever that is sufficient, and stop once the answer is known.
+The hierarchy index maps item IDs and parent IDs to records/children. The shared `allDescendants()` helper used for validation/deletion uses iterative traversal with a visited-ID set rather than unbounded JavaScript recursion. Separate hierarchy renderers retain their own visited-ID guards. Modal type selectors use direct-child checks whenever that is sufficient, and stop once the answer is known.
 
 The Activity index groups events by item and by root. Root-level timeline operations may use the root collection, while child-item date comparisons use the child's own indexed events. This avoids repeatedly scanning the entire root Activity collection during a sort. These are client-side implementation details and do not introduce a new storage entity or external service.
 
