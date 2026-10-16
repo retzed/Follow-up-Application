@@ -1582,7 +1582,7 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
   const rows=[];let offset=0;let pageGuard=0;
   while(true){
    const url=new URL(parsed.toString());url.searchParams.set('limit',String(limit));url.searchParams.set('offset',String(offset));
-   const result=await request('GET',`${url.pathname}${url.search}`);
+   const result=mode==='api'?await requestCachedGet(`${url.pathname}${url.search}`,`paged-query:${url.pathname}${url.search}`):await request('GET',`${url.pathname}${url.search}`);
    const page=(result.items||[]).map(x=>x&&x.id?x:toAppItem(x));
    rows.push(...page);
    if(typeof onPage==='function')onPage(page,result,rows.length);
@@ -1663,16 +1663,17 @@ window.TEAM_FOLLOW_UP_CONFIG = Object.freeze({
  async function queryChildren(parentId,options={}){const dateMode=options.dateMode||'updated';const p=new URLSearchParams({dateMode,direction:options.direction||(dateMode==='created'?'asc':'desc')});for(const [key,q] of Object.entries({type:options.type,status:options.status,priority:options.priority,q:options.query,from:options.from,to:options.to,limit:options.limit,offset:options.offset}))if(q!==undefined&&q!==null&&q!=='')p.set(key,String(q));const path=`/items/${encodeURIComponent(parentId)}/children?${p}`;return mode==='api'?requestCachedGet(path,`children-query:${parentId}:${p}`):request('GET',path);}
  async function queryRootItems(rootParentId,options={}){
   const rootId=String(rootParentId||'');if(!rootId)throw new Error('A Project or Job ID is required to load its items.');
-  const noFilters=!options.type&&!options.status&&!options.priority&&!options.query&&!options.from&&!options.to;
-  if(mode==='api'&&noFilters&&!options.onPage&&(options.dateMode||'updated')==='updated'&&(options.direction||'desc')==='desc'){
-   const cached=await requestCachedGet('/items?rootParentId='+encodeURIComponent(rootId)+'&dateMode=updated&direction=desc','root-items:'+rootId);
-   const items=(cached?.items||[]).map(item=>item&&item.id?item:toAppItem(item)).filter(item=>String(item.id)!==rootId&&item.type!=='project'&&item.type!=='job');
-   return {items,count:items.length,nextOffset:null,version:cached?.version||''};
-  }
   const dateMode=options.dateMode||'updated';
   const params=new URLSearchParams({rootParentId:rootId,dateMode,direction:options.direction||(dateMode==='created'?'asc':'desc')});
   for(const [key,value] of Object.entries({type:options.type,status:options.status,priority:options.priority,q:options.query,from:options.from,to:options.to}))if(value!==undefined&&value!==null&&value!=='')params.set(key,String(value));
-  const rows=await fetchPagedItems('/items?'+params.toString(),typeof options.onPage==='function'?options.onPage:null,100);
+  let rows;
+  if(mode==='api'&&!options.onPage){
+   const cacheKey='root-items:'+rootId+':'+params.toString();
+   const cached=await requestCachedGet('/items?'+params.toString(),cacheKey);
+   rows=(cached.items||[]).map(item=>item&&item.id?item:toAppItem(item));
+  }else{
+   rows=await fetchPagedItems('/items?'+params.toString(),options.onPage,100);
+  }
   const items=rows.filter(item=>String(item.id)!==rootId&&item.type!=='project'&&item.type!=='job');
   return {items,count:items.length,nextOffset:null};
  }
